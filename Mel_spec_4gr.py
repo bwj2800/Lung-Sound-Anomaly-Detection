@@ -111,8 +111,9 @@ cycle_list = []
 classwise_cycle_list = [[], [], [],[]]
 for idx, file_name in tqdm(enumerate(filenames)):
     data = get_sound_samples(rec_annotations_dict[file_name], file_name, data_dir, sample_rate)
-    # print('--------', data)
-    cycles_with_labels = [(d[0], d[3], file_name, cycle_idx, d[3]) for cycle_idx, d in enumerate(data[1:])] #label: d[3]
+    # print('data--------', data)
+    # d[0]:audio_chunk, d[1]:start, d[2]:end, d[3]:get_label(crackles, wheezes)       data[1]:file name
+    cycles_with_labels = [(d[0], d[3], file_name, cycle_idx, 0) for cycle_idx, d in enumerate(data[1:])] 
     # print('cycles_with_labels: ', cycles_with_labels)
     cycle_list.extend(cycles_with_labels)
     for cycle_idx, d in enumerate(cycles_with_labels):
@@ -141,10 +142,10 @@ for idx in range(aug_nos):
     normal_i = classwise_cycle_list[0][i]
     normal_j = classwise_cycle_list[0][j]
     new_sample = np.concatenate([normal_i[0], normal_j[0]])
-    cycle_list.append((new_sample, 0, normal_i[2]+'-'+normal_j[2], idx, 0))
+    cycle_list.append((new_sample, 0, normal_i[2]+'-'+normal_j[2], idx, 1))
     filenames_with_labels.append(normal_i[2]+'-'+normal_j[2]+'_'+str(idx)+'_0')
     
-# augment abnormal
+# augment abnormal (crackle)
 aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[1])
 for idx in range(aug_nos):
     aug_prob = random.random()
@@ -170,6 +171,62 @@ for idx in range(aug_nos):
     new_sample = np.concatenate([sample_i[0], sample_j[0]])
     cycle_list.append((new_sample, 1, sample_i[2]+'-'+sample_j[2], idx, 1))
     filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_1')
+
+# augment abnormal (wheeze)
+aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[2])
+for idx in range(aug_nos):
+    aug_prob = random.random()
+    if aug_prob < 0.6:
+        # wheeze_i + wheeze_j
+        i = random.randint(0, len(classwise_cycle_list[2])-1)
+        j = random.randint(0, len(classwise_cycle_list[2])-1)
+        sample_i = classwise_cycle_list[2][i]
+        sample_j = classwise_cycle_list[2][j]
+    elif aug_prob >= 0.6 and aug_prob < 0.8:
+        # wheeze_i + normal_j
+        i = random.randint(0, len(classwise_cycle_list[2])-1)
+        j = random.randint(0, len(classwise_cycle_list[0])-1)
+        sample_i = classwise_cycle_list[2][i]
+        sample_j = classwise_cycle_list[0][j]
+    else:
+        # normal_i + wheeze_j
+        i = random.randint(0, len(classwise_cycle_list[0])-1)
+        j = random.randint(0, len(classwise_cycle_list[2])-1)
+        sample_i = classwise_cycle_list[0][i]
+        sample_j = classwise_cycle_list[2][j]
+
+    new_sample = np.concatenate([sample_i[0], sample_j[0]])
+    cycle_list.append((new_sample, 2, sample_i[2]+'-'+sample_j[2], idx, 1))
+    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_1')
+
+
+# augment abnormal (both)
+aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[3])
+for idx in range(aug_nos):
+    aug_prob = random.random()
+    if aug_prob < 0.6:
+        # both_i + both_j
+        i = random.randint(0, len(classwise_cycle_list[3])-1)
+        j = random.randint(0, len(classwise_cycle_list[3])-1)
+        sample_i = classwise_cycle_list[3][i]
+        sample_j = classwise_cycle_list[3][j]
+    elif aug_prob >= 0.6 and aug_prob < 0.8:
+        # both_i + normal_j
+        i = random.randint(0, len(classwise_cycle_list[3])-1)
+        j = random.randint(0, len(classwise_cycle_list[0])-1)
+        sample_i = classwise_cycle_list[3][i]
+        sample_j = classwise_cycle_list[0][j]
+    else:
+        # normal_i + both_j
+        i = random.randint(0, len(classwise_cycle_list[0])-1)
+        j = random.randint(0, len(classwise_cycle_list[3])-1)
+        sample_i = classwise_cycle_list[0][i]
+        sample_j = classwise_cycle_list[3][j]
+
+    new_sample = np.concatenate([sample_i[0], sample_j[0]])
+    cycle_list.append((new_sample, 3, sample_i[2]+'-'+sample_j[2], idx, 1))
+    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_1')
+
 print("len(cycle_list): ",len(cycle_list))
 
 
@@ -197,7 +254,7 @@ for idx, sample in enumerate(cycle_list):
         if output_buffer_length % n_samples == 0: # repeat sample
             repeat_sample = np.tile(soundclip, t)
             copy_repeat_sample = repeat_sample.copy()
-            output.append((copy_repeat_sample, sample[4]))
+            output.append((copy_repeat_sample, sample[1]))
         else: 
             d = output_buffer_length % n_samples
             # print('ddddd', d)
@@ -207,10 +264,10 @@ for idx, sample in enumerate(cycle_list):
             repeat_sample = np.concatenate((np.tile(soundclip, t), d))
             copy_repeat_sample = repeat_sample.copy()
             # print('copy_repeat_sample:', len(copy_repeat_sample))
-            output.append((copy_repeat_sample, sample[4]))
+            output.append((copy_repeat_sample, sample[1]))
     else:  # longer than 8sec
         copy_repeat_sample = soundclip[:output_buffer_length]
-        output.append((copy_repeat_sample, sample[4]))
+        output.append((copy_repeat_sample, sample[1]))
 print('----Len Output-----', len(output))        
 # print('----Output-----', output[1][1])
 audio_data.extend(output)
@@ -237,16 +294,16 @@ for i in range(len(mel_img)):
     labels = mel_img[i][1]
     # print(type(labels))
     # Create the two folders for the labels
-    os.makedirs('./data_4gr/normal', exist_ok=True)
-    os.makedirs('./data_4gr/crackle', exist_ok=True)
-    os.makedirs('./data_4gr/wheeze', exist_ok=True)
-    os.makedirs('./data_4gr/both', exist_ok=True)
+    os.makedirs('./data_4gr/original_images/normal', exist_ok=True)
+    os.makedirs('./data_4gr/original_images/crackle', exist_ok=True)
+    os.makedirs('./data_4gr/original_images/wheeze', exist_ok=True)
+    os.makedirs('./data_4gr/original_images/both', exist_ok=True)
     if labels == 0: #1: abnormal, 0: normal
-        cv2.imwrite(os.path.join('./data_4gr/normal', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join('./data_4gr/original_images/normal', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
     elif labels == 1:
-        cv2.imwrite(os.path.join('./data_4gr/crackle', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join('./data_4gr/original_images/crackle', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
     elif labels == 2:
-        cv2.imwrite(os.path.join('./data_4gr/wheeze', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join('./data_4gr/original_images/wheeze', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
     else:
-        cv2.imwrite(os.path.join('./data_4gr/both', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join('./data_4gr/original_images/both', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
 print('Done')
