@@ -231,22 +231,27 @@ for index in range(len(audio_data)): #len(audio_data)
     mel_img.append(mel_img_label)
 # for i in range(len(mel_img)):
 #     print('mel_img: ', mel_img[i][1])
+destination_dir = './data_4gr/original_images'
+if not os.path.exists(destination_dir):
+    os.makedirs(destination_dir)
+# Create the four folders for the labels
+os.makedirs(os.path.join(destination_dir,'normal'), exist_ok=True)
+os.makedirs(os.path.join(destination_dir,'crackle'), exist_ok=True)
+os.makedirs(os.path.join(destination_dir,'wheeze'), exist_ok=True)
+os.makedirs(os.path.join(destination_dir,'both'), exist_ok=True)
+
 for i in range(len(mel_img)):
     input_data = mel_img[i][0]
     # print(input_data)
     labels = mel_img[i][1]
     # print(type(labels))
-    # Create the two folders for the labels
-    os.makedirs('./data_4gr/normal', exist_ok=True)
-    os.makedirs('./data_4gr/crackle', exist_ok=True)
-    os.makedirs('./data_4gr/wheeze', exist_ok=True)
-    os.makedirs('./data_4gr/both', exist_ok=True)
+    
     if labels == 0: #1: abnormal, 0: normal
-        cv2.imwrite(os.path.join('./data_4gr/normal', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join(destination_dir,'normal', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
     elif labels == 1:
-        cv2.imwrite(os.path.join('./data_4gr/crackle', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join(destination_dir,'crackle', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
     elif labels == 2:
-        cv2.imwrite(os.path.join('./data_4gr/wheeze', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join(destination_dir,'wheeze', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
     else:
-        cv2.imwrite(os.path.join('./data_4gr/both', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join(destination_dir,'both', 'image_'+str(i)+'.jpg'), cv2.cvtColor(input_data, cv2.COLOR_RGB2BGR))
 print('Done')
