@@ -157,7 +157,7 @@ print('Built model!!!', model)
 # train model
 # =============================================================================
 callback = EarlyStopping(monitor='loss', patience=3)
-opt = tf.keras.optimizers.Adam(lr=0.0001)
+opt = tf.keras.optimizers.Adam(learning_rate=0.0001)
 criterion = tf.keras.losses.categorical_crossentropy
 model.compile(optimizer=opt, loss=criterion,metrics=['acc'])
 trainedmodel = model.fit(X_train, y_train,batch_size = 128,epochs=100, validation_data = (X_val, y_val), callbacks=[callback])
@@ -195,7 +195,7 @@ plot_confusion_matrix(cm,classes=['normal', 'abnormal'])
 plt.savefig('conf_matrix.jpg',dpi=300)
 
 test_loss=model.evaluate(X_test,y_test,verbose=1)#evaluate model
-print(test_loss)#print test loss and metrics information
+print("test_loss:", test_loss)#print test loss and metrics information
 
 # =============================================================================
 # ROC curve where positive label is 0 
