@@ -2,3 +2,4 @@ venv
 .ipynb_checkpoints
 data_4gr
 ICBHI_Dataset
+*.jpg
