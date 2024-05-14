@@ -197,20 +197,32 @@ for idx in range(aug_nos):
 
     new_sample = np.concatenate([sample_i[0], sample_j[0]])
     cycle_list.append((new_sample, 2, sample_i[2]+'-'+sample_j[2], idx, 1))
-    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_1')
+    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_2')
 
 
 # augment abnormal (both)
 aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[3])
 for idx in range(aug_nos):
     aug_prob = random.random()
-    if aug_prob < 0.6:
+    if aug_prob < 0.5:
         # both_i + both_j
         i = random.randint(0, len(classwise_cycle_list[3])-1)
         j = random.randint(0, len(classwise_cycle_list[3])-1)
         sample_i = classwise_cycle_list[3][i]
         sample_j = classwise_cycle_list[3][j]
-    elif aug_prob >= 0.6 and aug_prob < 0.8:
+    elif aug_prob >= 0.5 and aug_prob < 0.7:
+        # crackle_i + wheeze_j
+        i = random.randint(0, len(classwise_cycle_list[1])-1)
+        j = random.randint(0, len(classwise_cycle_list[2])-1)
+        sample_i = classwise_cycle_list[1][i]
+        sample_j = classwise_cycle_list[2][j]
+    elif aug_prob >= 0.7 and aug_prob < 0.8:
+        # wheeze_i + crackle_j
+        i = random.randint(0, len(classwise_cycle_list[3])-1)
+        j = random.randint(0, len(classwise_cycle_list[0])-1)
+        sample_i = classwise_cycle_list[3][i]
+        sample_j = classwise_cycle_list[0][j]
+    elif aug_prob >= 0.8 and aug_prob < 0.9:
         # both_i + normal_j
         i = random.randint(0, len(classwise_cycle_list[3])-1)
         j = random.randint(0, len(classwise_cycle_list[0])-1)
@@ -225,7 +237,7 @@ for idx in range(aug_nos):
 
     new_sample = np.concatenate([sample_i[0], sample_j[0]])
     cycle_list.append((new_sample, 3, sample_i[2]+'-'+sample_j[2], idx, 1))
-    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_1')
+    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_3')
 
 print("len(cycle_list): ",len(cycle_list))
 
