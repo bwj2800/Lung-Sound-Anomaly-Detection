@@ -16,6 +16,10 @@ import tensorflow as tf
 
 from IPython.display import Image
 
+save_dir='./mat/'
+
+if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
 seed_value = 42
 random.seed(seed_value)
@@ -137,4 +141,4 @@ for class_name in class_names:
 
     feature_pool=np.delete(feature_pool, 0, 0)
     feature_pool=np.concatenate((feature_pool,label*np.ones(len(feature_pool)).reshape(len(feature_pool),1)), axis=1)#add label to the last column   
-    sio.savemat('new_'+ output_file_name + '_322.mat', {output_file_name: feature_pool}) # save the created feature pool as a mat file 
+    sio.savemat(save_dir+ output_file_name + '_322.mat', {output_file_name: feature_pool}) # save the created feature pool as a mat file 
