@@ -26,11 +26,9 @@ nfft = 2048
 hop = 512
 f_max = 4000
 
-stetho_id=-1
 folds_file = './ICBHI_Dataset/patient_list_foldwise.txt'
 # train_flag = train_flag
 data_dir = './ICBHI_Dataset/audio_and_txt_files/'
-# file_name = './Dataset/audio_and_txt_files/'
 
 def Extract_Annotation_Data(file_name, data_dir):
 	tokens = file_name.split('_')
@@ -47,9 +45,6 @@ def get_annotations(data_dir):
 		i,a = Extract_Annotation_Data(s, data_dir)
 		i_list.append(i)
 		rec_annotations_dict[s] = a
-
-	# recording_info = pd.concat(i_list, axis = 0)
-	# recording_info.head()
 
 	return filenames, rec_annotations_dict
 
@@ -94,7 +89,7 @@ def create_mel_raw(current_window, sample_rate, n_mels=128, f_min=50, f_max=4000
 	height, width, _ = img.shape
 	if resz > 0:
 		img = cv2.resize(img, (width*resz, height*resz), interpolation=cv2.INTER_LINEAR)
-	img = cv2.flip(img, 0)
+	# img = cv2.flip(img, 0)
 	return img
 
 
@@ -294,13 +289,14 @@ for index in range(len(audio_data)): #len(audio_data)
     audio = audio_data[index][0]
     # label
     label = audio_data[index][1]    
-    audio_image = cv2.cvtColor(create_mel_raw(audio, sample_rate, f_max= f_max, 
-            n_mels=n_mels, nfft=nfft, hop=hop, resz=3), cv2.COLOR_BGR2RGB)
+    audio_image = cv2.cvtColor(
+        create_mel_raw(audio, sample_rate, f_max= f_max, n_mels=n_mels, nfft=nfft, hop=hop, resz=1)
+        , cv2.COLOR_BGR2RGB
+    )
     mel_img_label = (audio_image, label)
     mel_img.append(mel_img_label)
-# for i in range(len(mel_img)):
-#     print('mel_img: ', mel_img[i][1])
-destination_dir = './data_4gr/original_images'
+
+destination_dir = './data_4gr/original_images_new'
 if not os.path.exists(destination_dir):
     os.makedirs(destination_dir)
 # Create the four folders for the labels

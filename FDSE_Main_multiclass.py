@@ -76,7 +76,7 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './'
+source_dir= './mat_new/'
 save_dir='./figure/'
 if not os.path.exists(save_dir):
         os.makedirs(save_dir)
