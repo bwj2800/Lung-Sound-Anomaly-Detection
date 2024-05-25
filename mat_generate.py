@@ -114,8 +114,6 @@ for class_name in class_names:
         img=io.imread(os.path.join(source_dir,img_name))
         img_rescaled=(img-np.min(img))/(np.max(img)-np.min(img))         
 
-
-        
         mel_spec = librosa.feature.inverse.mel_to_stft(img_rescaled.astype(np.float32))
         # Convert to decibels
         mel_spec_db = librosa.amplitude_to_db(np.abs(mel_spec), ref=np.max)

@@ -26,6 +26,8 @@ import librosa
 import librosa.display
 from PIL import Image
 
+model_path="./checkpoint/model_1.h5"
+
 seed_value = 42
 random.seed(seed_value)
 np.random.seed(seed_value)
@@ -105,8 +107,8 @@ X = min_max_scaler.fit_transform(X)
 # =============================================================================
 # feature reduction (K-PCA)
 # =============================================================================
-transformer = KernelPCA(n_components=97, kernel='linear') #30% of 322 = 97
-X = transformer.fit_transform(X)
+# transformer = KernelPCA(n_components=128, kernel='linear') #40% of 322 = 97
+# X = transformer.fit_transform(X)
 
 tf.random.set_seed(42)
 # Define function to build model with specified random seed
@@ -166,7 +168,8 @@ opt = tf.keras.optimizers.Adam(learning_rate=0.0001)
 criterion = tf.keras.losses.categorical_crossentropy
 model.compile(optimizer=opt, loss=criterion,metrics=['acc'])
 trainedmodel = model.fit(X_train, y_train,batch_size = 128,epochs=100, validation_data = (X_val, y_val), callbacks=[callback])
-
+model.save(model_path)
+print("===Model Saved===")
 
 fig = plt.figure()
 plt.plot(model.history.history['val_loss'], 'r',model.history.history['loss'], 'b')
