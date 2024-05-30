@@ -26,6 +26,8 @@ import librosa
 import librosa.display
 from PIL import Image
 
+model_path="./checkpoint/model_hs.h5"
+
 seed_value = 42
 random.seed(seed_value)
 np.random.seed(seed_value)
@@ -74,23 +76,23 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './'
+source_dir= './mat_new_hs/'
 save_dir='./figure/'
 if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 # =============================================================================
 # load mat files
 # =============================================================================
-normal_features=sio.loadmat(os.path.join(source_dir,'normal_322.mat')) 
+normal_features=sio.loadmat(os.path.join(source_dir,'normal_252.mat')) 
 normal_features=normal_features['normal']
 
-crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_322.mat')) 
+crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_252.mat')) 
 crackle_features=crackle_features['crackle']
 
-wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_322.mat')) 
+wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_252.mat')) 
 wheeze_features=wheeze_features['wheeze']
 
-both_features=sio.loadmat(os.path.join(source_dir,'both_322.mat')) 
+both_features=sio.loadmat(os.path.join(source_dir,'both_252.mat')) 
 both_features=both_features['both']    
 
 X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)
@@ -105,8 +107,8 @@ X = min_max_scaler.fit_transform(X)
 # =============================================================================
 # feature reduction (K-PCA)
 # =============================================================================
-transformer = KernelPCA(n_components=97, kernel='linear') #30% of 322 = 97
-X = transformer.fit_transform(X)
+# transformer = KernelPCA(n_components=128, kernel='linear') #40% of 322 = 97
+# X = transformer.fit_transform(X)
 
 tf.random.set_seed(42)
 # Define function to build model with specified random seed
@@ -166,7 +168,8 @@ opt = tf.keras.optimizers.Adam(learning_rate=0.0001)
 criterion = tf.keras.losses.categorical_crossentropy
 model.compile(optimizer=opt, loss=criterion,metrics=['acc'])
 trainedmodel = model.fit(X_train, y_train,batch_size = 128,epochs=100, validation_data = (X_val, y_val), callbacks=[callback])
-
+model.save(model_path)
+print("===Model Saved===")
 
 fig = plt.figure()
 plt.plot(model.history.history['val_loss'], 'r',model.history.history['loss'], 'b')
