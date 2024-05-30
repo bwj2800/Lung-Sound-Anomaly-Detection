@@ -26,7 +26,7 @@ import librosa
 import librosa.display
 from PIL import Image
 
-model_path="./checkpoint/model_1.h5"
+model_path="./checkpoint/model_hs.h5"
 
 seed_value = 42
 random.seed(seed_value)
@@ -76,23 +76,23 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './mat_new/'
+source_dir= './mat_new_hs/'
 save_dir='./figure/'
 if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 # =============================================================================
 # load mat files
 # =============================================================================
-normal_features=sio.loadmat(os.path.join(source_dir,'normal_322.mat')) 
+normal_features=sio.loadmat(os.path.join(source_dir,'normal_252.mat')) 
 normal_features=normal_features['normal']
 
-crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_322.mat')) 
+crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_252.mat')) 
 crackle_features=crackle_features['crackle']
 
-wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_322.mat')) 
+wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_252.mat')) 
 wheeze_features=wheeze_features['wheeze']
 
-both_features=sio.loadmat(os.path.join(source_dir,'both_322.mat')) 
+both_features=sio.loadmat(os.path.join(source_dir,'both_252.mat')) 
 both_features=both_features['both']    
 
 X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)
