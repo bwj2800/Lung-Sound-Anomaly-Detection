@@ -26,6 +26,8 @@ import librosa
 import librosa.display
 from PIL import Image
 
+model_path="./checkpoint/model_hs.h5"
+
 seed_value = 42
 random.seed(seed_value)
 np.random.seed(seed_value)
@@ -74,21 +76,24 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './'
+source_dir= './mat_new_hs/'
+save_dir='./figure/'
+if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 # =============================================================================
 # load mat files
 # =============================================================================
-normal_features=sio.loadmat(os.path.join(source_dir,'mat252','normal_252.mat')) 
+normal_features=sio.loadmat(os.path.join(source_dir,'normal_252.mat')) 
 normal_features=normal_features['normal']
 
-crackle_features=sio.loadmat(os.path.join(source_dir,'mat252','crackle_252.mat')) 
+crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_252.mat')) 
 crackle_features=crackle_features['crackle']
 
-wheeze_features=sio.loadmat(os.path.join(source_dir,'mat252','wheeze_252.mat')) 
+wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_252.mat')) 
 wheeze_features=wheeze_features['wheeze']
 
-both_features=sio.loadmat(os.path.join(source_dir,'mat252','both_252.mat')) 
-both_features=both_features['both']   
+both_features=sio.loadmat(os.path.join(source_dir,'both_252.mat')) 
+both_features=both_features['both']    
 
 X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)
 y = np.concatenate((normal_features[:,-1],crackle_features[:,-1], wheeze_features[:,-1], both_features[:,-1]), axis=0)
@@ -102,7 +107,7 @@ X = min_max_scaler.fit_transform(X)
 # =============================================================================
 # feature reduction (K-PCA)
 # =============================================================================
-# transformer = KernelPCA(n_components=128, kernel='linear') #30% of 322 = 97
+# transformer = KernelPCA(n_components=128, kernel='linear') #40% of 322 = 97
 # X = transformer.fit_transform(X)
 
 tf.random.set_seed(42)
@@ -146,7 +151,7 @@ print('X train - y train:', X_train.shape, y_train.shape)
 print('X test - y test:', X_test.shape, y_test.shape)
 
 X_train, X_val, y_train, y_val = train_test_split(
-    X_train, y_train, test_size=0.25, random_state=1)# 0.25
+    X_train, y_train, test_size=0.25, random_state=1) # 0.25
 print('X train - val', X_train.shape, y_train.shape)
 
 
@@ -163,14 +168,15 @@ opt = tf.keras.optimizers.Adam(learning_rate=0.0001)
 criterion = tf.keras.losses.categorical_crossentropy
 model.compile(optimizer=opt, loss=criterion,metrics=['acc'])
 trainedmodel = model.fit(X_train, y_train,batch_size = 128,epochs=100, validation_data = (X_val, y_val), callbacks=[callback])
-
+model.save(model_path)
+print("===Model Saved===")
 
 fig = plt.figure()
 plt.plot(model.history.history['val_loss'], 'r',model.history.history['loss'], 'b')
 plt.xlabel('Epochs')
 plt.ylabel('Loss Score')
 plt.grid(1)
-plt.savefig('training_loss.jpg',dpi=300)
+plt.savefig(save_dir+'training_loss.jpg',dpi=300)
 
 
 fig = plt.figure()
@@ -180,7 +186,7 @@ plt.plot(epochs, accuracy)
 plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
 plt.grid(1)
-plt.savefig('Acc.jpg',dpi=300)
+plt.savefig(save_dir+'Acc.jpg',dpi=300)
 # =============================================================================
 # evaluate model
 # =============================================================================
@@ -194,7 +200,7 @@ print(cm)
 
 fig = plt.figure()
 plot_confusion_matrix(cm, classes=['crackle', 'wheeze', 'both', 'normal'])
-plt.savefig('conf_matrix.jpg',dpi=300)
+plt.savefig(save_dir+'conf_matrix.jpg',dpi=300)
 
 test_loss=model.evaluate(X_test,y_test,verbose=1)#evaluate model
 print("test_loss:", test_loss)#print test loss and metrics information
@@ -216,7 +222,7 @@ for pos_label in range(1,4):
     plt.title('Receiver operating characteristic')
     plt.grid(True)
     plt.legend(loc="lower right")
-    plt.savefig(f'roc_class_{classes_[pos_label]}.jpg', dpi=300)
+    plt.savefig(save_dir+f'roc_class_{classes_[pos_label]}.jpg', dpi=300)
 
 
 # =============================================================================
@@ -235,37 +241,30 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver operating characteristic')
 plt.grid(1)
 plt.legend(loc="lower right")
-plt.savefig('roc_abnormal.jpg',dpi=300)
+plt.savefig(save_dir+'roc_abnormal.jpg',dpi=300)
 
 avg_cm = confusion_matrix(np.argmax(y_test, axis=1),y_pred)
 print('confusion matrix',avg_cm)
 
-## fixed metrics(기존은 True/Predicted -> 논문은 Predicted/Total)
+# fixed metrics(기존은 True/Predicted -> 논문은 Predicted/Total) 
+# cm[label][predicted]
 se = (avg_cm[1][1] + avg_cm[2][2] + avg_cm[3][3])/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3] 
                                                    + avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
                                                   + avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
 
 sp = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[0][1] + avg_cm[0][2] + avg_cm[0][3])
+sc = (se+sp)/2
+
 s_crackle = avg_cm[1][1]/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
 s_wheezle = avg_cm[2][2]/(avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
 s_both = avg_cm[3][3]/(avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-sc = (se+sp)/2
 
-se = (avg_cm[1][1] + avg_cm[2][2] + avg_cm[3][3])/(avg_cm[0][1] + avg_cm[1][1] + avg_cm[2][1] + avg_cm[3][1] 
-                                                   + avg_cm[0][2] + avg_cm[1][2] + avg_cm[2][2] + avg_cm[3][2]
-                                                  + avg_cm[0][3] + avg_cm[1][3] + avg_cm[2][3] + avg_cm[3][3])
-# 기존 metrics
-# sp = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[1][0] + avg_cm[2][0] + avg_cm[3][0])
-# s_crackle = avg_cm[1][1]/(avg_cm[0][1] + avg_cm[1][1] + avg_cm[2][1] + avg_cm[3][1])
-# s_wheezle = avg_cm[2][2]/(avg_cm[0][2] + avg_cm[1][2] + avg_cm[2][2] + avg_cm[3][2])
-# s_both = avg_cm[3][3]/(avg_cm[0][3] + avg_cm[1][3] + avg_cm[2][3] + avg_cm[3][3])
-# sc = (se+sp)/2
 print('Specificity Sp:', sp)
 print('Sensitivity Se:', se)
+print('Score Sc:', sc)
 print('crackle accuracy:', s_crackle)
 print('wheezle accuracy:', s_wheezle)
 print('both accuracy:', s_both)
-print('Score Sc:', sc)
 
 # Classification report
 #print(classification_report(y_test, y_pred))
