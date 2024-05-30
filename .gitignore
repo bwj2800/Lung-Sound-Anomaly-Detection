@@ -3,3 +3,4 @@ venv
 data_4gr
 ICBHI_Dataset
 *.jpg
+*.mat

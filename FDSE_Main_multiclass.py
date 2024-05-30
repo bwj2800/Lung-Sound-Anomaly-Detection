@@ -78,17 +78,17 @@ source_dir= './'
 # =============================================================================
 # load mat files
 # =============================================================================
-normal_features=sio.loadmat(os.path.join(source_dir,'normal_322.mat')) 
+normal_features=sio.loadmat(os.path.join(source_dir,'mat252','normal_252.mat')) 
 normal_features=normal_features['normal']
 
-crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_322.mat')) 
+crackle_features=sio.loadmat(os.path.join(source_dir,'mat252','crackle_252.mat')) 
 crackle_features=crackle_features['crackle']
 
-wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_322.mat')) 
+wheeze_features=sio.loadmat(os.path.join(source_dir,'mat252','wheeze_252.mat')) 
 wheeze_features=wheeze_features['wheeze']
 
-both_features=sio.loadmat(os.path.join(source_dir,'both_322.mat')) 
-both_features=both_features['both']    
+both_features=sio.loadmat(os.path.join(source_dir,'mat252','both_252.mat')) 
+both_features=both_features['both']   
 
 X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)
 y = np.concatenate((normal_features[:,-1],crackle_features[:,-1], wheeze_features[:,-1], both_features[:,-1]), axis=0)
@@ -102,8 +102,8 @@ X = min_max_scaler.fit_transform(X)
 # =============================================================================
 # feature reduction (K-PCA)
 # =============================================================================
-transformer = KernelPCA(n_components=97, kernel='linear') #30% of 322 = 97
-X = transformer.fit_transform(X)
+# transformer = KernelPCA(n_components=128, kernel='linear') #30% of 322 = 97
+# X = transformer.fit_transform(X)
 
 tf.random.set_seed(42)
 # Define function to build model with specified random seed
@@ -239,15 +239,27 @@ plt.savefig('roc_abnormal.jpg',dpi=300)
 
 avg_cm = confusion_matrix(np.argmax(y_test, axis=1),y_pred)
 print('confusion matrix',avg_cm)
+
+## fixed metrics(기존은 True/Predicted -> 논문은 Predicted/Total)
+se = (avg_cm[1][1] + avg_cm[2][2] + avg_cm[3][3])/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3] 
+                                                   + avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
+                                                  + avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+
+sp = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[0][1] + avg_cm[0][2] + avg_cm[0][3])
+s_crackle = avg_cm[1][1]/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
+s_wheezle = avg_cm[2][2]/(avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
+s_both = avg_cm[3][3]/(avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+sc = (se+sp)/2
+
 se = (avg_cm[1][1] + avg_cm[2][2] + avg_cm[3][3])/(avg_cm[0][1] + avg_cm[1][1] + avg_cm[2][1] + avg_cm[3][1] 
                                                    + avg_cm[0][2] + avg_cm[1][2] + avg_cm[2][2] + avg_cm[3][2]
                                                   + avg_cm[0][3] + avg_cm[1][3] + avg_cm[2][3] + avg_cm[3][3])
-
-sp = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[1][0] + avg_cm[2][0] + avg_cm[3][0])
-s_crackle = avg_cm[1][1]/(avg_cm[0][1] + avg_cm[1][1] + avg_cm[2][1] + avg_cm[3][1])
-s_wheezle = avg_cm[2][2]/(avg_cm[0][2] + avg_cm[1][2] + avg_cm[2][2] + avg_cm[3][2])
-s_both = avg_cm[3][3]/(avg_cm[0][3] + avg_cm[1][3] + avg_cm[2][3] + avg_cm[3][3])
-sc = (se+sp)/2
+# 기존 metrics
+# sp = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[1][0] + avg_cm[2][0] + avg_cm[3][0])
+# s_crackle = avg_cm[1][1]/(avg_cm[0][1] + avg_cm[1][1] + avg_cm[2][1] + avg_cm[3][1])
+# s_wheezle = avg_cm[2][2]/(avg_cm[0][2] + avg_cm[1][2] + avg_cm[2][2] + avg_cm[3][2])
+# s_both = avg_cm[3][3]/(avg_cm[0][3] + avg_cm[1][3] + avg_cm[2][3] + avg_cm[3][3])
+# sc = (se+sp)/2
 print('Specificity Sp:', sp)
 print('Sensitivity Se:', se)
 print('crackle accuracy:', s_crackle)

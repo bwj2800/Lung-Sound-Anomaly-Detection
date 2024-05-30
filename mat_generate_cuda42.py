@@ -5,7 +5,7 @@ from utils import*
 import librosa
 import librosa.display
 import torch
-#import torchlibrosa as tl
+import torchlibrosa as tl
 from tqdm import tqdm
 
 import scipy.io as sio
@@ -17,6 +17,7 @@ import skimage.io as io
 import tensorflow as tf
 
 from IPython.display import Image
+import time
 
 
 seed_value = 42
@@ -26,6 +27,7 @@ tf.random.set_seed(seed_value)
 tf.compat.v1.set_random_seed(seed_value)
 # tf.keras.utils.set_random_seed(seed_value)
 # tf.random.set_seed()
+print('gpu usable: ',torch.cuda.is_available())
 
 def im2double(img):
     """ convert image to double format """
@@ -105,22 +107,25 @@ for class_name in class_names:
     feature_pool=np.empty([1,84]) # feature pool [1,252]
     # for idx,img_name in enumerate(image_list):
     for idx, img_name in tqdm(enumerate(image_list), total=len(image_list)):
-        
+        start = time.time()
         # Extract Texture features
         # print(idx)
         img=io.imread(os.path.join(source_dir,img_name))
         img_rescaled=(img-np.min(img))/(np.max(img)-np.min(img))         
-
+        print('img read time: ', start - time.time())
+        start = time.time()
 
         
         mel_spec = librosa.feature.inverse.mel_to_stft(img_rescaled.astype(np.float32))
         # Convert to decibels
         mel_spec_db = librosa.amplitude_to_db(np.abs(mel_spec), ref=np.max)
-        #print(mel_spec_db)
+        print('get mel time: ', start - time.time())
+        start = time.time()
         # Extract chroma feature stft -> cqt
         chroma_stft = librosa.feature.chroma_stft(S=np.abs(mel_spec_db))
         chroma_stft_feature =  compute_14_features(chroma_stft) 
-        
+        print('get chroma time: ', start - time.time())
+        start = time.time()
         # Extract spectral features
         spectral_centroid = librosa.feature.spectral_centroid(S=np.abs(mel_spec_db))
         spectral_bandwidth = librosa.feature.spectral_bandwidth(S=np.abs(mel_spec_db))
@@ -129,14 +134,17 @@ for class_name in class_names:
         
         spectral_features=np.concatenate((compute_14_features(spectral_centroid), compute_14_features(spectral_bandwidth),
                                     compute_14_features(spectral_contrast),compute_14_features(spectral_rolloff)), axis=0)
+        print('get spectral time: ', start - time.time())
+        start = time.time()
         # Extract MFCC feature
         mfcc = librosa.feature.mfcc(S=librosa.power_to_db(mel_spec_db))
         mfcc_feature =  compute_14_features(mfcc) 
-        
+        print('get mfcc time: ', start - time.time())
+        start = time.time()
         feature_vector=np.concatenate((chroma_stft_feature, spectral_features, mfcc_feature), axis=0).reshape(1,84)
         feature_pool=np.concatenate((feature_pool,feature_vector), axis=0)
-
+        print('get concat time: ', start - time.time())
+        start = time.time()
     feature_pool=np.delete(feature_pool, 0, 0)
     feature_pool=np.concatenate((feature_pool,label*np.ones(len(feature_pool)).reshape(len(feature_pool),1)), axis=1)#add label to the last column   
     sio.savemat('new_'+ output_file_name + '_322.mat', {output_file_name: feature_pool}) # save the created feature pool as a mat file 
-
