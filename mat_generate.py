@@ -5,6 +5,8 @@ import numpy as np
 from scipy import signal
 import matplotlib.pyplot as plt
 
+from tqdm import tqdm
+
 import random
 import tensorflow as tf
 
@@ -12,11 +14,14 @@ import scipy
 import scipy.io as sio
 from scipy.stats import skew
 from scipy.stats import kurtosis
+import pandas as pd
+from tensorflow.python.client import device_lib
 
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.utils import Sequence
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
 seed_value = 1
 random.seed(seed_value)
 np.random.seed(seed_value)
@@ -34,7 +39,14 @@ stetho_id=-1
 folds_file = './ICBHI_Dataset/patient_list_foldwise.txt'
 # train_flag = train_flag
 
-import pandas as pd
+save_dir='./mat252/'
+print("============",device_lib.list_local_devices())
+print("============",torch.cuda.is_available())
+
+if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+
 data_dir = './ICBHI_Dataset/audio_and_txt_files/'
 # file_name = './Dataset/audio_and_txt_files/'
 def Extract_Annotation_Data(file_name, data_dir):
@@ -95,7 +107,6 @@ def get_sound_samples(recording_annotations, file_name, data_dir, sample_rate):
 filenames, rec_annotations_dict = get_annotations(data_dir)
 #print(rec_annotations_dict)
 
-from tqdm import tqdm
 filenames_with_labels = []
 #print("Exracting Individual Cycles")
 cycle_list = []
@@ -375,11 +386,7 @@ for index in tqdm(range(len(audio_data)), total=len(audio_data)):
     S_low_filtered = np.apply_along_axis(lambda x: apply_filter(x, b_low, a_low), 0, S_db)
     S_high_filtered = np.apply_along_axis(lambda x: apply_filter(x, b_high, a_high), 0, S_db)
     S_band_filtered = np.apply_along_axis(lambda x: apply_filter(x, b_band, a_band), 0, S_db)
-    # # noise
-    # S_low_filtered += np.random.normal(0, 1e-8, S_low_filtered.shape) # noise addition
-    # S_high_filtered += np.random.normal(0, 1e-8, S_high_filtered.shape) # noise addition
-    # S_band_filtered += np.random.normal(0, 1e-8, S_band_filtered.shape) # noise addition
-    # Stack the filtered spectrograms to form a 3D array
+    
     S_filtered = np.stack((S_low_filtered, S_high_filtered, S_band_filtered), axis=-1)
 
     # Print the shape of the resulting array
@@ -453,13 +460,13 @@ both_feature_pool=np.concatenate((both_feature_pool,3*np.ones(len(both_feature_p
 classes = ['normal', 'crackle', 'wheeze', 'both']
 
 output_file_name = classes[0]
-sio.savemat('mat252/'+output_file_name + '_252.mat', {output_file_name: normal_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: normal_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[1]
-sio.savemat('mat252/'+output_file_name + '_252.mat', {output_file_name: crackle_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: crackle_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[2]
-sio.savemat('mat252/'+output_file_name + '_252.mat', {output_file_name: wheeze_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: wheeze_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[3]
-sio.savemat('mat252/'+output_file_name + '_252.mat', {output_file_name: both_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: both_feature_pool}) # save the created feature pool as a mat file 
