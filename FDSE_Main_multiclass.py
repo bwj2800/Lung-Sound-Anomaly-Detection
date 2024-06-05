@@ -8,8 +8,6 @@ from sklearn.decomposition import KernelPCA
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc, confusion_matrix
 from sklearn.preprocessing import MinMaxScaler
-    
-from sklearn.preprocessing import MinMaxScaler
 
 import tensorflow as tf
 from tensorflow import keras
@@ -25,8 +23,11 @@ from utils import*
 import librosa
 import librosa.display
 from PIL import Image
+import joblib
 
-model_path="./checkpoint/model_hs.h5"
+model_path="./checkpoint/model252.h5"
+scaler_path ="./checkpoint/scaler252.pkl"
+transformer_path="./checkpoint/transformer252.pkl"
 
 seed_value = 42
 random.seed(seed_value)
@@ -76,7 +77,7 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './mat_new_hs/'
+source_dir= './mat_new/'
 save_dir='./figure/'
 if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -97,19 +98,24 @@ both_features=both_features['both']
 
 X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)
 y = np.concatenate((normal_features[:,-1],crackle_features[:,-1], wheeze_features[:,-1], both_features[:,-1]), axis=0)
-print("y.shape:",y.shape)
-print(min(y),max(y))
+print("X.shape:",X.shape)
+print(min(X[0]),max(X[0]))
 # =============================================================================
 # normalization
 # =============================================================================
 min_max_scaler=MinMaxScaler()
 X = min_max_scaler.fit_transform(X) 
+joblib.dump(min_max_scaler, scaler_path)
+print("===scaler Saved===")
 # =============================================================================
 # feature reduction (K-PCA)
 # =============================================================================
-# transformer = KernelPCA(n_components=128, kernel='linear') #40% of 322 = 97
-# X = transformer.fit_transform(X)
+transformer = KernelPCA(n_components=184, kernel='linear') #40% of 322 = 97
+X = transformer.fit_transform(X)
+joblib.dump(transformer, transformer_path)
+print("===transformer Saved===")
 
+print("X.shape:",X.shape)
 tf.random.set_seed(42)
 # Define function to build model with specified random seed
 def build_model(feature_size, n_classes, dropout):
