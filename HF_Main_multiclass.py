@@ -8,6 +8,8 @@ from sklearn.decomposition import KernelPCA
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc, confusion_matrix
 from sklearn.preprocessing import MinMaxScaler
+    
+from sklearn.preprocessing import MinMaxScaler
 
 import tensorflow as tf
 from tensorflow import keras
@@ -23,11 +25,8 @@ from utils import*
 import librosa
 import librosa.display
 from PIL import Image
-import joblib
 
-model_path="./checkpoint/model252.h5"
-scaler_path ="./checkpoint/scaler252.pkl"
-transformer_path="./checkpoint/transformer252.pkl"
+model_path="./checkpoint/HF_model_4000.h5"
 
 seed_value = 42
 random.seed(seed_value)
@@ -77,45 +76,44 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './mat_new/'
+source_dir= './HF_mat/'
 save_dir='./figure/'
 if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 # =============================================================================
 # load mat files
 # =============================================================================
-normal_features=sio.loadmat(os.path.join(source_dir,'normal_252.mat')) 
-normal_features=normal_features['normal']
+inhale_features=sio.loadmat(os.path.join(source_dir,'inhale_462.mat')) 
+inhale_features=inhale_features['inhale']
 
-crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_252.mat')) 
-crackle_features=crackle_features['crackle']
+exhale_features=sio.loadmat(os.path.join(source_dir,'exhale_462.mat')) 
+exhale_features=exhale_features['exhale']
 
-wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_252.mat')) 
-wheeze_features=wheeze_features['wheeze']
+continuous_features=sio.loadmat(os.path.join(source_dir,'continuous_462.mat')) 
+continuous_features=continuous_features['continuous']
 
-both_features=sio.loadmat(os.path.join(source_dir,'both_252.mat')) 
-both_features=both_features['both']    
+discontinuous_features=sio.loadmat(os.path.join(source_dir,'discontinuous_462.mat')) 
+discontinuous_features=discontinuous_features['discontinuous']    
 
-X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)
-y = np.concatenate((normal_features[:,-1],crackle_features[:,-1], wheeze_features[:,-1], both_features[:,-1]), axis=0)
-print("X.shape:",X.shape)
-print(min(X[0]),max(X[0]))
+X = np.concatenate((inhale_features[:,:-1], exhale_features[:,:-1], continuous_features[:,:-1],discontinuous_features[:,:-1]), axis=0)
+y = np.concatenate((inhale_features[:,-1],exhale_features[:,-1], continuous_features[:,-1], discontinuous_features[:,-1]), axis=0)
+print("y.shape:",y.shape)
+print(min(y),max(y))
 # =============================================================================
 # normalization
 # =============================================================================
 min_max_scaler=MinMaxScaler()
 X = min_max_scaler.fit_transform(X) 
-joblib.dump(min_max_scaler, scaler_path)
-print("===scaler Saved===")
 # =============================================================================
 # feature reduction (K-PCA)
 # =============================================================================
-transformer = KernelPCA(n_components=184, kernel='linear') #40% of 322 = 97
-X = transformer.fit_transform(X)
-joblib.dump(transformer, transformer_path)
-print("===transformer Saved===")
+# transformer = KernelPCA(n_components=184, kernel='linear') #40% of 322 = 97
+# X = transformer.fit_transform(X)
+# from sklearn.decomposition import TruncatedSVD
 
-print("X.shape:",X.shape)
+# svd = TruncatedSVD(n_components=184, algorithm='arpack')
+# X = svd.fit_transform(X)
+
 tf.random.set_seed(42)
 # Define function to build model with specified random seed
 def build_model(feature_size, n_classes, dropout):
@@ -254,23 +252,15 @@ print('confusion matrix',avg_cm)
 
 # fixed metrics(기존은 True/Predicted -> 논문은 Predicted/Total) 
 # cm[label][predicted]
-se = (avg_cm[1][1] + avg_cm[2][2] + avg_cm[3][3])/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3] 
-                                                   + avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
-                                                  + avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+s_inhale = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[0][1] + avg_cm[0][2] + avg_cm[0][3])
+s_exhale = avg_cm[1][1]/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
+s_continuous = avg_cm[2][2]/(avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
+s_discontinous = avg_cm[3][3]/(avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
 
-sp = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[0][1] + avg_cm[0][2] + avg_cm[0][3])
-sc = (se+sp)/2
-
-s_crackle = avg_cm[1][1]/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
-s_wheezle = avg_cm[2][2]/(avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
-s_both = avg_cm[3][3]/(avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-
-print('Specificity Sp:', sp)
-print('Sensitivity Se:', se)
-print('Score Sc:', sc)
-print('crackle accuracy:', s_crackle)
-print('wheezle accuracy:', s_wheezle)
-print('both accuracy:', s_both)
+print('inhale accuracy:', s_inhale)
+print('exhale accuracy:', s_exhale)
+print('continuous accuracy:', s_continuous)
+print('discontinous accuracy:', s_discontinous)
 
 # Classification report
 #print(classification_report(y_test, y_pred))

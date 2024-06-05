@@ -30,17 +30,14 @@ tf.random.set_seed(seed_value)
 tf.compat.v1.set_random_seed(seed_value)
 tf.keras.utils.set_random_seed(seed_value)
 
-sample_rate = 16000
+sample_rate = 4000
 desired_length = 8
 n_mels = 64
 nfft = 256
 hop = nfft//2
 f_max = 2000
-stetho_id=-1
-folds_file = './ICBHI_Dataset/patient_list_foldwise.txt'
-# train_flag = train_flag
 
-save_dir='./mat_new/'
+save_dir='./HF_mat/'
 print("============\n",device_lib.list_local_devices())
 print("============",torch.cuda.is_available())
 
@@ -48,30 +45,43 @@ if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
 
-data_dir = './ICBHI_Dataset/audio_and_txt_files/'
-# file_name = './Dataset/audio_and_txt_files/'
+data_dir = './HF_Lung_V1/train/'
+
+def extract_seconds(time_str):
+    """시, 분, 초 형식의 문자열에서 초를 추출하는 함수."""
+    _, _, seconds = time_str.split(':')
+    return float(seconds)
+
 def Extract_Annotation_Data(file_name, data_dir):
-   tokens = file_name.split('_')
-   recording_info = pd.DataFrame(data = [tokens], columns = ['Patient Number', 'Recording index', 'Chest location','Acquisition mode','Recording equipment'])
-   recording_annotations = pd.read_csv(os.path.join(data_dir, file_name + '.txt'), names = ['Start', 'End', 'Crackles', 'Wheezes'], delimiter= '\t')
-   return recording_info, recording_annotations
+    # 파일을 읽어서 각 줄을 리스트로 저장
+    with open(os.path.join(data_dir, file_name + '_label.txt'), 'r') as file:
+        lines = file.readlines()
+
+    # 빈 리스트를 생성하여 데이터를 저장
+    data = {'Label': [], 'Start': [], 'End': []}
+    
+    # 각 줄을 파싱하여 데이터에 추가
+    for line in lines:
+        parts = line.split()
+        if len(parts) == 3:
+            label, start, end = parts
+            data['Label'].append(label)
+            data['Start'].append(extract_seconds(start))
+            data['End'].append(extract_seconds(end))
+
+    # DataFrame으로 변환
+    recording_annotations = pd.DataFrame(data)
+    return recording_annotations
 
 # get annotations data and filenames
 def get_annotations(data_dir):
-   filenames = [s.split('.')[0] for s in os.listdir(data_dir) if '.txt' in s]
+   filenames = [s.split('_label')[0] for s in os.listdir(data_dir) if '_label.txt' in s]
    i_list = []
    rec_annotations_dict = {}
    for s in filenames:
-      i,a = Extract_Annotation_Data(s, data_dir)
-      i_list.append(i)
+      a = Extract_Annotation_Data(s, data_dir)
       rec_annotations_dict[s] = a
-
-   recording_info = pd.concat(i_list, axis = 0)
-   recording_info.head()
-
    return filenames, rec_annotations_dict
-
-
 
 def slice_data(start, end, raw_data, sample_rate):
    max_ind = len(raw_data) 
@@ -79,31 +89,34 @@ def slice_data(start, end, raw_data, sample_rate):
    end_ind = min(int(end * sample_rate), max_ind)
    return raw_data[start_ind: end_ind]
 
-def get_label(crackle, wheeze):
-   if crackle == 0 and wheeze == 0:
+def get_label(label):
+   if label == 'I':
       return 0
-   elif crackle == 1 and wheeze == 0:
+   elif label == 'E':
       return 1
-   elif crackle == 0 and wheeze == 1:
+   elif label=='Wheeze' or label=='Rhonchi' or label=='Stridor':
       return 2
    else:
       return 3
     
 def get_sound_samples(recording_annotations, file_name, data_dir, sample_rate):
-   sample_data = [file_name]
-   # load file with specified sample rate (also converts to mono)
-   data, rate = librosa.load(os.path.join(data_dir, file_name+'.wav'), sr=sample_rate)
-   #print("Sample Rate", rate)
-   
-   for i in range(len(recording_annotations.index)):
-      row = recording_annotations.loc[i]
-      start = row['Start']
-      end = row['End']
-      crackles = row['Crackles']
-      wheezes = row['Wheezes']
-      audio_chunk = slice_data(start, end, data, rate)
-      sample_data.append((audio_chunk, start,end, get_label(crackles, wheezes)))
-   return sample_data
+    sample_data = [file_name]
+    # load file with specified sample rate (also converts to mono)
+    data, rate = librosa.load(os.path.join(data_dir, file_name+'.wav'), sr=None)
+
+    resampled_data = librosa.resample(data, orig_sr=rate, target_sr=sample_rate)
+    rate=sample_rate
+
+    #print("Sample Rate", rate)
+    
+    for i in range(len(recording_annotations.index)):
+        row = recording_annotations.loc[i]
+        label = row['Label']
+        start = row['Start']
+        end = row['End']
+        audio_chunk = slice_data(start, end, data, rate)
+        sample_data.append((audio_chunk, start,end, get_label(label)))
+    return sample_data
 
 filenames, rec_annotations_dict = get_annotations(data_dir)
 #print(rec_annotations_dict)
@@ -111,7 +124,7 @@ filenames, rec_annotations_dict = get_annotations(data_dir)
 filenames_with_labels = []
 #print("Exracting Individual Cycles")
 cycle_list = []
-classwise_cycle_list = [[], [], [],[]]
+classwise_cycle_list = [[], [], [], []]
 for idx, file_name in tqdm(enumerate(filenames)):
     data = get_sound_samples(rec_annotations_dict[file_name], file_name, data_dir, sample_rate)
     # print('--------', data)
@@ -124,130 +137,12 @@ for idx, file_name in tqdm(enumerate(filenames)):
 print(len(cycle_list))
 print(len(classwise_cycle_list))
 
-# =============================================================================
-# Data augmentation
-# =============================================================================
-# augment normal
-seed_value = 1
-random.seed(seed_value)
-np.random.seed(seed_value)
-tf.random.set_seed(seed_value)
-tf.compat.v1.set_random_seed(seed_value)
-tf.keras.utils.set_random_seed(seed_value)
-scale = 1
-aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[0])
-for idx in range(aug_nos):
-    # normal_i + normal_j
-    i = random.randint(0, len(classwise_cycle_list[0])-1)
-    j = random.randint(0, len(classwise_cycle_list[0])-1)
-    normal_i = classwise_cycle_list[0][i]
-    normal_j = classwise_cycle_list[0][j]
-    new_sample = np.concatenate([normal_i[0], normal_j[0]])
-    cycle_list.append((new_sample, 0, normal_i[2]+'-'+normal_j[2], idx, 1))
-    filenames_with_labels.append(normal_i[2]+'-'+normal_j[2]+'_'+str(idx)+'_0')
-    
-# augment abnormal (crackle)
-aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[1])
-for idx in range(aug_nos):
-    aug_prob = random.random()
-    if aug_prob < 0.6:
-        # crackle_i + crackle_j
-        i = random.randint(0, len(classwise_cycle_list[1])-1)
-        j = random.randint(0, len(classwise_cycle_list[1])-1)
-        sample_i = classwise_cycle_list[1][i]
-        sample_j = classwise_cycle_list[1][j]
-    elif aug_prob >= 0.6 and aug_prob < 0.8:
-        # crackle_i + normal_j
-        i = random.randint(0, len(classwise_cycle_list[1])-1)
-        j = random.randint(0, len(classwise_cycle_list[0])-1)
-        sample_i = classwise_cycle_list[1][i]
-        sample_j = classwise_cycle_list[0][j]
-    else:
-        # normal_i + crackle_j
-        i = random.randint(0, len(classwise_cycle_list[0])-1)
-        j = random.randint(0, len(classwise_cycle_list[1])-1)
-        sample_i = classwise_cycle_list[0][i]
-        sample_j = classwise_cycle_list[1][j]
-
-    new_sample = np.concatenate([sample_i[0], sample_j[0]])
-    cycle_list.append((new_sample, 1, sample_i[2]+'-'+sample_j[2], idx, 1))
-    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_1')
-
-# augment abnormal (wheeze)
-aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[2])
-for idx in range(aug_nos):
-    aug_prob = random.random()
-    if aug_prob < 0.6:
-        # wheeze_i + wheeze_j
-        i = random.randint(0, len(classwise_cycle_list[2])-1)
-        j = random.randint(0, len(classwise_cycle_list[2])-1)
-        sample_i = classwise_cycle_list[2][i]
-        sample_j = classwise_cycle_list[2][j]
-    elif aug_prob >= 0.6 and aug_prob < 0.8:
-        # wheeze_i + normal_j
-        i = random.randint(0, len(classwise_cycle_list[2])-1)
-        j = random.randint(0, len(classwise_cycle_list[0])-1)
-        sample_i = classwise_cycle_list[2][i]
-        sample_j = classwise_cycle_list[0][j]
-    else:
-        # normal_i + wheeze_j
-        i = random.randint(0, len(classwise_cycle_list[0])-1)
-        j = random.randint(0, len(classwise_cycle_list[2])-1)
-        sample_i = classwise_cycle_list[0][i]
-        sample_j = classwise_cycle_list[2][j]
-
-    new_sample = np.concatenate([sample_i[0], sample_j[0]])
-    cycle_list.append((new_sample, 2, sample_i[2]+'-'+sample_j[2], idx, 1))
-    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_2')
-
-
-# augment abnormal (both)
-aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[3])
-for idx in range(aug_nos):
-    aug_prob = random.random()
-    if aug_prob < 0.5:
-        # both_i + both_j
-        i = random.randint(0, len(classwise_cycle_list[3])-1)
-        j = random.randint(0, len(classwise_cycle_list[3])-1)
-        sample_i = classwise_cycle_list[3][i]
-        sample_j = classwise_cycle_list[3][j]
-    elif aug_prob >= 0.5 and aug_prob < 0.7:
-        # crackle_i + wheeze_j
-        i = random.randint(0, len(classwise_cycle_list[1])-1)
-        j = random.randint(0, len(classwise_cycle_list[2])-1)
-        sample_i = classwise_cycle_list[1][i]
-        sample_j = classwise_cycle_list[2][j]
-    elif aug_prob >= 0.7 and aug_prob < 0.8:
-        # wheeze_i + crackle_j
-        i = random.randint(0, len(classwise_cycle_list[3])-1)
-        j = random.randint(0, len(classwise_cycle_list[0])-1)
-        sample_i = classwise_cycle_list[3][i]
-        sample_j = classwise_cycle_list[0][j]
-    elif aug_prob >= 0.8 and aug_prob < 0.9:
-        # both_i + normal_j
-        i = random.randint(0, len(classwise_cycle_list[3])-1)
-        j = random.randint(0, len(classwise_cycle_list[0])-1)
-        sample_i = classwise_cycle_list[3][i]
-        sample_j = classwise_cycle_list[0][j]
-    else:
-        # normal_i + both_j
-        i = random.randint(0, len(classwise_cycle_list[0])-1)
-        j = random.randint(0, len(classwise_cycle_list[3])-1)
-        sample_i = classwise_cycle_list[0][i]
-        sample_j = classwise_cycle_list[3][j]
-
-    new_sample = np.concatenate([sample_i[0], sample_j[0]])
-    cycle_list.append((new_sample, 3, sample_i[2]+'-'+sample_j[2], idx, 1))
-    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_3')
-
-print("len(cycle_list): ",len(cycle_list))
-
-# =============================================================================
-# Aligning to an 8-second duration
+#=============================================================================
+# Aligning to an 4-second duration
 # =============================================================================
 audio_data = [] # each sample is a tuple with id_0: audio_data, id_1: label, id_2: file_name, id_3: cycle id, id_4: aug id, id_5: split id
 labels = []
-desiredLength = 10
+desiredLength = 4
 print('desiredLength*sample_rate: ', desiredLength*sample_rate)
 output = []
 for idx, sample in enumerate(cycle_list):
@@ -337,10 +232,10 @@ hop = 512
 #hop = 64
 
 num_features=462
-normal_feature_pool = np.empty([1,num_features])
-crackle_feature_pool = np.empty([1,num_features])
-wheeze_feature_pool = np.empty([1,num_features])
-both_feature_pool = np.empty([1,num_features])
+inhale_feature_pool = np.empty([1,num_features])
+exhale_feature_pool = np.empty([1,num_features])
+continuous_feature_pool = np.empty([1,num_features])
+discontinuous_feature_pool = np.empty([1,num_features])
 
 for index in tqdm(range(len(audio_data)), total=len(audio_data)):
     audio = audio_data[index][0]
@@ -422,7 +317,6 @@ for index in tqdm(range(len(audio_data)), total=len(audio_data)):
         p0_feature =  compute_14_features(p0) 
         poly_features.append(p0_feature)
 
-
     
     total_spectral_features = np.concatenate((spectral_features[0],spectral_features[1],spectral_features[2]),axis=0)
     total_chroma_features = np.concatenate((chroma_features[0],chroma_features[1],chroma_features[2]), axis=0)
@@ -432,37 +326,37 @@ for index in tqdm(range(len(audio_data)), total=len(audio_data)):
     feature_vector=np.concatenate((total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features), axis=0).reshape(1,num_features)
 
     if label == 0:
-        normal_feature_pool=np.concatenate((normal_feature_pool,feature_vector), axis=0)
+        inhale_feature_pool=np.concatenate((inhale_feature_pool,feature_vector), axis=0)
     elif label == 1:
-        crackle_feature_pool=np.concatenate((crackle_feature_pool,feature_vector), axis=0)
+        exhale_feature_pool=np.concatenate((exhale_feature_pool,feature_vector), axis=0)
     elif label == 2:
-        wheeze_feature_pool=np.concatenate((wheeze_feature_pool,feature_vector), axis=0)
+        continuous_feature_pool=np.concatenate((continuous_feature_pool,feature_vector), axis=0)
     else:
-        both_feature_pool=np.concatenate((both_feature_pool,feature_vector), axis=0)
+        discontinuous_feature_pool=np.concatenate((discontinuous_feature_pool,feature_vector), axis=0)
 
 
-normal_feature_pool=np.delete(normal_feature_pool, 0, 0)
-normal_feature_pool=np.concatenate((normal_feature_pool,0*np.ones(len(normal_feature_pool)).reshape(len(normal_feature_pool),1)), axis=1)#add label to the last column   
+inhale_feature_pool=np.delete(inhale_feature_pool, 0, 0)
+inhale_feature_pool=np.concatenate((inhale_feature_pool,0*np.ones(len(inhale_feature_pool)).reshape(len(inhale_feature_pool),1)), axis=1)#add label to the last column   
 
-crackle_feature_pool=np.delete(crackle_feature_pool, 0, 0)
-crackle_feature_pool=np.concatenate((crackle_feature_pool,1*np.ones(len(crackle_feature_pool)).reshape(len(crackle_feature_pool),1)), axis=1)#add label to the last column   
+exhale_feature_pool=np.delete(exhale_feature_pool, 0, 0)
+exhale_feature_pool=np.concatenate((exhale_feature_pool,1*np.ones(len(exhale_feature_pool)).reshape(len(exhale_feature_pool),1)), axis=1)#add label to the last column   
 
-wheeze_feature_pool=np.delete(wheeze_feature_pool, 0, 0)
-wheeze_feature_pool=np.concatenate((wheeze_feature_pool,2*np.ones(len(wheeze_feature_pool)).reshape(len(wheeze_feature_pool),1)), axis=1)#add label to the last column   
+continuous_feature_pool=np.delete(continuous_feature_pool, 0, 0)
+continuous_feature_pool=np.concatenate((continuous_feature_pool,2*np.ones(len(continuous_feature_pool)).reshape(len(continuous_feature_pool),1)), axis=1)#add label to the last column   
 
-both_feature_pool=np.delete(both_feature_pool, 0, 0)
-both_feature_pool=np.concatenate((both_feature_pool,3*np.ones(len(both_feature_pool)).reshape(len(both_feature_pool),1)), axis=1)#add label to the last column   
+discontinuous_feature_pool=np.delete(discontinuous_feature_pool, 0, 0)
+discontinuous_feature_pool=np.concatenate((discontinuous_feature_pool,3*np.ones(len(discontinuous_feature_pool)).reshape(len(discontinuous_feature_pool),1)), axis=1)#add label to the last column   
 
-classes = ['normal', 'crackle', 'wheeze', 'both']
+classes = ['inhale', 'exhale', 'continuous', 'discontinuous']
 
 output_file_name = classes[0]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: normal_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: inhale_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[1]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: crackle_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: exhale_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[2]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: wheeze_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: continuous_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[3]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: both_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: discontinuous_feature_pool}) # save the created feature pool as a mat file 
