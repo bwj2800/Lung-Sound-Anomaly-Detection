@@ -4,6 +4,7 @@ import librosa
 import numpy as np
 from scipy import signal
 import matplotlib.pyplot as plt
+import torch
 
 from tqdm import tqdm
 
@@ -39,8 +40,8 @@ stetho_id=-1
 folds_file = './ICBHI_Dataset/patient_list_foldwise.txt'
 # train_flag = train_flag
 
-save_dir='./mat252/'
-print("============",device_lib.list_local_devices())
+save_dir='./mat_new/'
+print("============\n",device_lib.list_local_devices())
 print("============",torch.cuda.is_available())
 
 if not os.path.exists(save_dir):
@@ -253,10 +254,6 @@ for idx, sample in enumerate(cycle_list):
     # print(f'{idx}: {sample}')
     output_buffer_length = int(desiredLength*sample_rate)
     soundclip = sample[0].copy()
-    # print('soundclip: ', soundclip)
-    # d = soundclip[0:3]
-    # b = np.concatenate((soundclip,d))
-    # print('soundclip copy: ', b)
     n_samples = len(soundclip)
     # print('n_samples: ', n_samples)
     if n_samples < output_buffer_length: # shorter than 8sec
@@ -270,8 +267,6 @@ for idx, sample in enumerate(cycle_list):
             d = output_buffer_length % n_samples
             # print('ddddd', d)
             d = soundclip[:d] # remainder
-            # print('dddddddd: ', d)
-            # print('soundclip*t:', len(np.tile(soundclip, t)), n_samples*t)
             repeat_sample = np.concatenate((np.tile(soundclip, t), d))
             copy_repeat_sample = repeat_sample.copy()
             # print('copy_repeat_sample:', len(copy_repeat_sample))
@@ -341,10 +336,11 @@ nfft = 2048
 hop = 512
 #hop = 64
 
-normal_feature_pool = np.empty([1,252])
-crackle_feature_pool = np.empty([1,252])
-wheeze_feature_pool = np.empty([1,252])
-both_feature_pool = np.empty([1,252])
+num_features=462
+normal_feature_pool = np.empty([1,num_features])
+crackle_feature_pool = np.empty([1,num_features])
+wheeze_feature_pool = np.empty([1,num_features])
+both_feature_pool = np.empty([1,num_features])
 
 for index in tqdm(range(len(audio_data)), total=len(audio_data)):
     audio = audio_data[index][0]
@@ -352,8 +348,8 @@ for index in tqdm(range(len(audio_data)), total=len(audio_data)):
 
 
     S = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
-    S = librosa.power_to_db(S, ref=np.max)
-    S_db = librosa.amplitude_to_db(S, ref=np.max)
+    S_db = librosa.power_to_db(S, ref=np.max)
+    # S_db = librosa.amplitude_to_db(S, ref=np.max)
     #print("mel spectrogram shape: ", S.shape)
 
 
@@ -389,52 +385,52 @@ for index in tqdm(range(len(audio_data)), total=len(audio_data)):
     
     S_filtered = np.stack((S_low_filtered, S_high_filtered, S_band_filtered), axis=-1)
 
-    # Print the shape of the resulting array
-    #print("mel filters shape: ", S_filtered.shape)  # Expected to be (13, 313, 3)
-
-    # MFCC
-    mfcc = librosa.feature.mfcc(S=S,n_mfcc=12)
-    # Compute the frame-wise energy
-    energy = np.sum(librosa.feature.rms(y=audio, frame_length=2048, hop_length=512)**2, axis=0)
-    mfcc_with_energy = np.vstack((mfcc, energy))
-    # print("MFCC shape: ", mfcc.shape)
-    # print("MFCC w/ energy shape: ", mfcc_with_energy.shape)
-
-    # Extract chroma feature stft -> cqt
-    chroma_stft = librosa.feature.chroma_stft(S=np.abs(S_db))
-    # print("chroma shape: ", chroma_stft.shape)
-
     # Extract Features
     spectral_features = []
     mfcc_features = []
     chroma_features = []
+    poly_features = []
     for s in [S_low_filtered, S_high_filtered, S_band_filtered]:
+        
+        # Extract spectral features
         spectral_centroid = librosa.feature.spectral_centroid(S=np.abs(s))
         spectral_bandwidth = librosa.feature.spectral_bandwidth(S=np.abs(s))
         spectral_contrast = librosa.feature.spectral_contrast(S=np.abs(s))
         spectral_rolloff = librosa.feature.spectral_rolloff(S=np.abs(s))
-
-        spectral_features.append(np.concatenate((compute_14_features(spectral_centroid), compute_14_features(spectral_bandwidth),
-                                    compute_14_features(spectral_contrast),compute_14_features(spectral_rolloff)), axis=0))
-        # print('spectral_features shape:', spectral_features.shape)
-        # MFCC & Chroma for each filtered mel-spec
+        spectral_flatness = librosa.feature.spectral_flatness(S=np.abs(s))
+        
+        spectral_feature=np.concatenate((compute_14_features(spectral_centroid),        compute_14_features(spectral_bandwidth), compute_14_features(spectral_contrast),compute_14_features(spectral_rolloff), compute_14_features(spectral_flatness)), axis=0)
+        spectral_features.append(spectral_feature)
+        
+        # Extract MFCC feature
         mfcc = librosa.feature.mfcc(S=s,n_mfcc=12)
-
         energy = np.sum(librosa.feature.rms(y=audio, frame_length=2048, hop_length=512)**2, axis=0)
         mfcc_with_energy = np.vstack((mfcc, energy))
-        chroma_stft = librosa.feature.chroma_stft(S=np.abs(s))
-
         mfcc_feature =  compute_14_features(mfcc_with_energy)
-        chroma_stft_feature =  compute_14_features(chroma_stft)
-
         mfcc_features.append(mfcc_feature)
-        chroma_features.append(chroma_stft_feature)
+        
+        # Extract chroma feature
+        chroma_stft = librosa.feature.chroma_stft(S=np.abs(s)) 
+        chroma_cqt = librosa.feature.chroma_cqt(C=np.abs(s))
+        chroma_cens = librosa.feature.chroma_cens(C=np.abs(s))
+        chroma_vqt = librosa.feature.chroma_vqt(V=np.abs(s), intervals='ji5')
+        chroma_feature=np.concatenate((compute_14_features(chroma_stft), compute_14_features(chroma_cqt),compute_14_features(chroma_cens),compute_14_features(chroma_vqt)), axis=0)
+        # chroma_stft_feature =  compute_14_features(chroma_stft)
+        chroma_features.append(chroma_feature)
+        
+        p0 = librosa.feature.poly_features(S=np.abs(s), order=0)
+        p0_feature =  compute_14_features(p0) 
+        poly_features.append(p0_feature)
 
+
+    
     total_spectral_features = np.concatenate((spectral_features[0],spectral_features[1],spectral_features[2]),axis=0)
     total_chroma_features = np.concatenate((chroma_features[0],chroma_features[1],chroma_features[2]), axis=0)
     total_mfcc_features = np.concatenate((mfcc_features[0],mfcc_features[1],mfcc_features[2]), axis=0)
-    
-    feature_vector=np.concatenate((total_chroma_features, total_spectral_features, total_mfcc_features), axis=0).reshape(1,252)
+    total_poly_features = np.concatenate((poly_features[0],poly_features[1],poly_features[2]), axis=0)
+
+    feature_vector=np.concatenate((total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features), axis=0).reshape(1,num_features)
+
     if label == 0:
         normal_feature_pool=np.concatenate((normal_feature_pool,feature_vector), axis=0)
     elif label == 1:
