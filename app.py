@@ -16,6 +16,61 @@ from scipy.stats import skew
 from scipy.stats import kurtosis
 from tensorflow.keras.models import load_model
 
+# def detect_respiratory_cycles(audio, sample_rate=16000):
+#     # Use RMS energy to detect respiratory cycles
+#     frame_length = int(0.1 * sample_rate)  # 100ms frame
+#     hop_length = int(0.05 * sample_rate)  # 50ms hop
+    
+#     rms = librosa.feature.rms(audio, frame_length=frame_length, hop_length=hop_length)[0]
+#     threshold = np.mean(rms) * 1.5  # You may need to adjust this threshold
+    
+#     cycles = []
+#     current_cycle = []
+#     is_inhale = False
+    
+#     for i, energy in enumerate(rms):
+#         if energy > threshold and not is_inhale:
+#             if current_cycle:
+#                 cycles.append(current_cycle)
+#             current_cycle = [i]
+#             is_inhale = True
+#         elif energy <= threshold and is_inhale:
+#             current_cycle.append(i)
+#             is_inhale = False
+    
+#     if current_cycle:
+#         cycles.append(current_cycle)
+    
+#     cycle_audio_segments = []
+#     for cycle in cycles:
+#         start_frame = cycle[0] * hop_length
+#         end_frame = cycle[-1] * hop_length + frame_length
+#         cycle_audio_segments.append(audio[start_frame:end_frame])
+    
+#     return cycle_audio_segments
+
+def align_length(sample, sample_rate=16000, desiredLength=10):
+    print('desiredLength*sample_rate: ', desiredLength*sample_rate)
+    output = []
+    output_buffer_length = int(desiredLength*sample_rate)
+    soundclip = sample.copy()
+    n_samples = len(soundclip)
+    
+    if n_samples < output_buffer_length: # shorter than 8sec
+        t = output_buffer_length // n_samples
+        if output_buffer_length % n_samples == 0: # repeat sample
+            repeat_sample = np.tile(soundclip, t)
+            copy_repeat_sample = repeat_sample.copy()
+        else:
+            d = output_buffer_length % n_samples
+            d = soundclip[:d] # remainder
+            repeat_sample = np.concatenate((np.tile(soundclip, t), d))
+            copy_repeat_sample = repeat_sample.copy()
+    else:  # longer than 8sec
+        copy_repeat_sample = soundclip[:output_buffer_length]
+        
+    return np.array(copy_repeat_sample)
+
 def compute_14_features(region):
     """ Compute 14 features """
     temp_array=region.reshape(-1)
@@ -72,7 +127,7 @@ def make_prediction(output):
     else:
         return "Both(Crackle&Wheeze)"
 
-def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=2000, nfft=2048, hop=512):    
+def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=4000, nfft=2048, hop=512):    
     S = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
     S_db = librosa.power_to_db(S, ref=np.max)
 
@@ -149,7 +204,7 @@ def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=2000, nfft=
     total_chroma_features = np.concatenate((chroma_features[0],chroma_features[1],chroma_features[2]), axis=0)
     total_mfcc_features = np.concatenate((mfcc_features[0],mfcc_features[1],mfcc_features[2]), axis=0)
     total_poly_features = np.concatenate((poly_features[0],poly_features[1],poly_features[2]), axis=0)
-
+     
     num_features=462
     feature_vector=np.concatenate((total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features), axis=0).reshape(1,num_features)
     
@@ -158,15 +213,11 @@ def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=2000, nfft=
 def classify_respiratory_sound(audio):
     sr, data = audio
     
-    # 데이터가 정수형인 경우 부동 소수점으로 정규화
-    if data.dtype == np.int16:
-        data = data / 32768.0
-    elif data.dtype == np.int32:
-        data = data / 2147483648.0
-    
-    # 데이터를 부동 소수점 형식으로 변환 (이미 부동 소수점인 경우 무시됨)
-    data_float32 = data.astype(np.float32)
-    data_resampled = librosa.resample(data_float32, orig_sr=sr, target_sr=16000)
+    if data.dtype != np.float32:
+        data = data.astype(np.float32) / np.max(np.abs(data))
+        
+    sample_rate=16000
+    data_resampled = librosa.resample(data, orig_sr=sr, target_sr=sample_rate)
     
     # librosa.load는 기본적으로 모노 채널 오디오를 반환합니다.
     # 만약 Gradio에서 받은 데이터가 스테레오라면, 모노로 변환해야 할 수 있습니다.
@@ -175,29 +226,31 @@ def classify_respiratory_sound(audio):
     else:
         data_mono = data_resampled
     
-    feature_vector=feature_extractor(audio=data_mono, sample_rate=sr)
-    
-    print(min(feature_vector[0]),max(feature_vector[0]))
-    
     scaler_path ="./checkpoint/scaler252.pkl"
     transformer_path="./checkpoint/transformer252.pkl"
     min_max_scaler = joblib.load(scaler_path)
     transformer = joblib.load(transformer_path)
-    # =============================================================================
-    # normalization
-    # =============================================================================
-    # min_max_scaler=MinMaxScaler()
-    X = min_max_scaler.transform(feature_vector)
-    # =============================================================================
-    # feature reduction (K-PCA)
-    # =============================================================================
-    # X = transformer.fit_transform(np.vstack([X, X]))[0:1]
-    X = transformer.transform(X)
-    
     model= load_model('checkpoint/model252.h5')
+        
+    print(data_mono.shape, data_mono.shape[0]/sample_rate)
+    data_mono=align_length(data_mono, sample_rate=sample_rate)
+    print(data_mono.shape, data_mono.shape[0]/sample_rate)
+    feature_vector=feature_extractor(audio=data_mono, sample_rate=sample_rate)
+    
+    print(min(feature_vector[0]),max(feature_vector[0]))
+    
+    X = min_max_scaler.transform(feature_vector)
+    X = transformer.transform(X)
+    print("X.shape",X.shape)
+    
+    np.set_printoptions(precision=5, suppress=True)
+    print(X[0,:15])
+    
     Y_Score=model.predict(X)
     print(":::Prediction made")   
+    print(Y_Score)
     y_pred = np.argmax(Y_Score, axis=1)
+    # results.append(make_prediction(y_pred))
     
     return make_prediction(y_pred)
     

@@ -3,6 +3,8 @@ venv
 data_4gr
 ICBHI_Dataset
 *.jpg
+*.png
 *.mat
 checkpoint
 HF_Lung_V1
+flagged

@@ -96,8 +96,20 @@ wheeze_features=wheeze_features['wheeze']
 both_features=sio.loadmat(os.path.join(source_dir,'both_252.mat')) 
 both_features=both_features['both']    
 
-X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)
-y = np.concatenate((normal_features[:,-1],crackle_features[:,-1], wheeze_features[:,-1], both_features[:,-1]), axis=0)
+# Extract features and labels
+normal_X = normal_features[:, :-1]
+crackle_X = crackle_features[:, :-1]
+wheeze_X = wheeze_features[:, :-1]
+both_X = both_features[:, :-1]
+
+normal_y = normal_features[:, -1]
+crackle_y = crackle_features[:, -1]
+wheeze_y = wheeze_features[:, -1]
+both_y = both_features[:, -1]
+
+X = np.concatenate((normal_X, crackle_X, wheeze_X, both_X), axis=0)
+y = np.concatenate((normal_y, crackle_y, wheeze_y, both_y), axis=0)
+
 print("X.shape:",X.shape)
 print(min(X[0]),max(X[0]))
 # =============================================================================
@@ -114,6 +126,32 @@ transformer = KernelPCA(n_components=184, kernel='linear') #40% of 322 = 97
 X = transformer.fit_transform(X)
 joblib.dump(transformer, transformer_path)
 print("===transformer Saved===")
+
+# Calculate mean and standard deviation for each feature per class
+classes = ['normal', 'crackle', 'wheeze', 'both']
+class_indices = {
+    'normal': y == 0,
+    'crackle': y == 1,
+    'wheeze': y == 2,
+    'both': y == 3
+}
+
+means_stds = {}
+for cls in classes:
+    class_X = X[class_indices[cls]]
+    means_stds[cls] = {
+        'mean': np.mean(class_X, axis=0),
+        'std': np.std(class_X, axis=0)
+    }
+
+# Save the means and standard deviations to a txt file
+with open('feature_stats_per_class.txt', 'w') as f:
+    f.write('Class\tFeature\tMean\tStandard Deviation\n')
+    for cls in classes:
+        for i in range(len(means_stds[cls]['mean'])):
+            f.write(f'{cls}\t{i+1}\t{means_stds[cls]["mean"][i]:.10f}\t{means_stds[cls]["std"][i]:.10f}\n')
+
+print("===Statistics Saved===")
 
 print("X.shape:",X.shape)
 tf.random.set_seed(42)
