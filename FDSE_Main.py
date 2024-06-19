@@ -73,20 +73,20 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './'
+source_dir= 'mat_new/'
 # =============================================================================
 # load mat files
 # =============================================================================
-normal_features=sio.loadmat(os.path.join(source_dir,'mat252','normal_252.mat')) 
+normal_features=sio.loadmat(os.path.join(source_dir,'normal_252.mat')) 
 normal_features=normal_features['normal']
 
-crackle_features=sio.loadmat(os.path.join(source_dir,'mat252','crackle_252.mat')) 
+crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_252.mat')) 
 crackle_features=crackle_features['crackle']
 
-wheeze_features=sio.loadmat(os.path.join(source_dir,'mat252','wheeze_252.mat')) 
+wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_252.mat')) 
 wheeze_features=wheeze_features['wheeze']
 
-both_features=sio.loadmat(os.path.join(source_dir,'mat252','both_252.mat')) 
+both_features=sio.loadmat(os.path.join(source_dir,'both_252.mat')) 
 both_features=both_features['both']    
 
 X = np.concatenate((normal_features[:,:-1], crackle_features[:,:-1], wheeze_features[:,:-1],both_features[:,:-1]), axis=0)

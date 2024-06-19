@@ -40,7 +40,7 @@ stetho_id=-1
 folds_file = './ICBHI_Dataset/patient_list_foldwise.txt'
 # train_flag = train_flag
 
-save_dir='./mat_new/'
+save_dir='./mat_462/'
 print("============\n",device_lib.list_local_devices())
 print("============",torch.cuda.is_available())
 
@@ -342,10 +342,19 @@ crackle_feature_pool = np.empty([1,num_features])
 wheeze_feature_pool = np.empty([1,num_features])
 both_feature_pool = np.empty([1,num_features])
 
+classes = ['normal', 'crackle', 'wheeze', 'both']
+
+# Initialize dictionaries to store features by class
+spectral_features_dict = {cls: [] for cls in classes}
+chroma_features_dict = {cls: [] for cls in classes}
+mfcc_features_dict = {cls: [] for cls in classes}
+poly_features_dict = {cls: [] for cls in classes}
+
+txt_dir='feature/'
+
 for index in tqdm(range(len(audio_data)), total=len(audio_data)):
     audio = audio_data[index][0]
     label = audio_data[index][1]
-
 
     S = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
     S_db = librosa.power_to_db(S, ref=np.max)
@@ -422,12 +431,16 @@ for index in tqdm(range(len(audio_data)), total=len(audio_data)):
         p0_feature =  compute_14_features(p0) 
         poly_features.append(p0_feature)
 
-
     
     total_spectral_features = np.concatenate((spectral_features[0],spectral_features[1],spectral_features[2]),axis=0)
     total_chroma_features = np.concatenate((chroma_features[0],chroma_features[1],chroma_features[2]), axis=0)
     total_mfcc_features = np.concatenate((mfcc_features[0],mfcc_features[1],mfcc_features[2]), axis=0)
     total_poly_features = np.concatenate((poly_features[0],poly_features[1],poly_features[2]), axis=0)
+    
+    spectral_features_dict[classes[label]].append(total_spectral_features)
+    chroma_features_dict[classes[label]].append(total_chroma_features)
+    mfcc_features_dict[classes[label]].append(total_mfcc_features)
+    poly_features_dict[classes[label]].append(total_poly_features)
 
     feature_vector=np.concatenate((total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features), axis=0).reshape(1,num_features)
 
@@ -440,6 +453,37 @@ for index in tqdm(range(len(audio_data)), total=len(audio_data)):
     else:
         both_feature_pool=np.concatenate((both_feature_pool,feature_vector), axis=0)
 
+# Save the means and standard deviations to a txt file
+for feature in ['spectral','chroma','mfcc','poly']:
+    if feature=='spectral': feature_dict=spectral_features_dict
+    elif feature=='chroma': feature_dict=chroma_features_dict
+    elif feature=='mfcc': feature_dict=mfcc_features_dict
+    else: feature_dict=poly_features_dict
+    print('len(feature_dict["normal"]):',len(feature_dict["normal"]))
+    normal_feature=np.mean(feature_dict["normal"], axis=0)
+    crackle_feature=np.mean(feature_dict["crackle"], axis=0)
+    wheeze_feature=np.mean(feature_dict["wheeze"], axis=0)
+    both_feature=np.mean(feature_dict["both"], axis=0)
+    
+    print("normal_feature.shape:",normal_feature.shape)
+    with open(txt_dir+'feature_'+feature+'_normal.txt', 'w') as f:
+        f.write('Feature\tMean\n')
+        for i in range(len(normal_feature)):
+            f.write(f'{i+1}\t{normal_feature[i]:.10f}\n')
+    with open(txt_dir+'feature_'+feature+'_crackle.txt', 'w') as f:
+        f.write('Feature\tMean\n')
+        for i in range(len(crackle_feature)):
+            f.write(f'{i+1}\t{crackle_feature[i]:.10f}\n')
+    with open(txt_dir+'feature_'+feature+'_wheeze.txt', 'w') as f:
+        f.write('Feature\tMean\n')
+        for i in range(len(wheeze_feature)):
+            f.write(f'{i+1}\t{wheeze_feature[i]:.10f}\n')
+    with open(txt_dir+'feature_'+feature+'_both.txt', 'w') as f:
+        f.write('Feature\tMean\n')
+        for i in range(len(both_feature)):
+            f.write(f'{i+1}\t{both_feature[i]:.10f}\n')
+
+        
 
 normal_feature_pool=np.delete(normal_feature_pool, 0, 0)
 normal_feature_pool=np.concatenate((normal_feature_pool,0*np.ones(len(normal_feature_pool)).reshape(len(normal_feature_pool),1)), axis=1)#add label to the last column   
@@ -456,13 +500,46 @@ both_feature_pool=np.concatenate((both_feature_pool,3*np.ones(len(both_feature_p
 classes = ['normal', 'crackle', 'wheeze', 'both']
 
 output_file_name = classes[0]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: normal_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: normal_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[1]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: crackle_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: crackle_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[2]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: wheeze_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: wheeze_feature_pool}) # save the created feature pool as a mat file 
 
 output_file_name = classes[3]
-sio.savemat(save_dir+output_file_name + '_252.mat', {output_file_name: both_feature_pool}) # save the created feature pool as a mat file 
+sio.savemat(save_dir+output_file_name + '_462.mat', {output_file_name: both_feature_pool}) # save the created feature pool as a mat file 
+
+
+# Function to compute mean and std
+def compute_mean_std(features_dict):
+    means_stds = {}
+    for cls, features in features_dict.items():
+        features = np.array(features)
+        mean = np.mean(features, axis=0)
+        std = np.std(features, axis=0)
+        means_stds[cls] = {'mean': mean, 'std': std}
+    return means_stds
+
+# Function to save stats to a file
+def save_stats_to_file(means_stds, filename):
+    with open(filename, 'w') as f:
+        f.write('Class\tFeature\tMean\tStandard Deviation\n')
+        for cls in means_stds:
+            for i, (mean, std) in enumerate(zip(means_stds[cls]['mean'], means_stds[cls]['std'])):
+                f.write(f'{cls}\t{i+1}\t{mean:.10f}\t{std:.10f}\n')
+
+# Compute mean and std for each feature type
+spectral_means_stds = compute_mean_std(spectral_features_dict)
+chroma_means_stds = compute_mean_std(chroma_features_dict)
+mfcc_means_stds = compute_mean_std(mfcc_features_dict)
+poly_means_stds = compute_mean_std(poly_features_dict)
+
+# Save to files
+save_stats_to_file(spectral_means_stds, 'spectral_stats_per_class.txt')
+save_stats_to_file(chroma_means_stds, 'chroma_stats_per_class.txt')
+save_stats_to_file(mfcc_means_stds, 'mfcc_stats_per_class.txt')
+save_stats_to_file(poly_means_stds, 'poly_stats_per_class.txt')
+
+print("===Statistics Saved===")
