@@ -89,7 +89,7 @@ def create_mel_raw(current_window, sample_rate, n_mels=128, f_min=50, f_max=4000
 	height, width, _ = img.shape
 	if resz > 0:
 		img = cv2.resize(img, (width*resz, height*resz), interpolation=cv2.INTER_LINEAR)
-	# img = cv2.flip(img, 0)
+	img = cv2.flip(img, 0)
 	return img
 
 
@@ -296,7 +296,7 @@ for index in range(len(audio_data)): #len(audio_data)
     mel_img_label = (audio_image, label)
     mel_img.append(mel_img_label)
 
-destination_dir = './data_4gr/original_images_new'
+destination_dir = './data_4gr/mel_image'
 if not os.path.exists(destination_dir):
     os.makedirs(destination_dir)
 # Create the four folders for the labels
