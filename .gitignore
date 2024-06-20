@@ -10,3 +10,5 @@ HF_Lung_V1
 flagged
 demo_audio
 feature
+*.pth
+*.pkl
