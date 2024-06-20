@@ -25,9 +25,9 @@ import librosa.display
 from PIL import Image
 import joblib
 
-model_path="./checkpoint/model252.h5"
-scaler_path ="./checkpoint/scaler252.pkl"
-transformer_path="./checkpoint/transformer252.pkl"
+model_path="./checkpoint/model462.h5"
+scaler_path ="./checkpoint/scaler462.pkl"
+transformer_path="./checkpoint/transformer462.pkl"
 
 seed_value = 42
 random.seed(seed_value)
@@ -77,23 +77,23 @@ def plot_confusion_matrix(cm, classes,
 # =============================================================================
 # source_dir
 # =============================================================================
-source_dir= './mat_new/'
+source_dir= './mat_462/'
 save_dir='./figure/'
 if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 # =============================================================================
 # load mat files
 # =============================================================================
-normal_features=sio.loadmat(os.path.join(source_dir,'normal_252.mat')) 
+normal_features=sio.loadmat(os.path.join(source_dir,'normal_462.mat')) 
 normal_features=normal_features['normal']
 
-crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_252.mat')) 
+crackle_features=sio.loadmat(os.path.join(source_dir,'crackle_462.mat')) 
 crackle_features=crackle_features['crackle']
 
-wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_252.mat')) 
+wheeze_features=sio.loadmat(os.path.join(source_dir,'wheeze_462.mat')) 
 wheeze_features=wheeze_features['wheeze']
 
-both_features=sio.loadmat(os.path.join(source_dir,'both_252.mat')) 
+both_features=sio.loadmat(os.path.join(source_dir,'both_462.mat')) 
 both_features=both_features['both']    
 
 # Extract features and labels
@@ -145,7 +145,7 @@ for cls in classes:
     }
 
 # Save the means and standard deviations to a txt file
-with open('feature_stats_per_class.txt', 'w') as f:
+with open('feature/feature_stats_per_class.txt', 'w') as f:
     f.write('Class\tFeature\tMean\tStandard Deviation\n')
     for cls in classes:
         for i in range(len(means_stds[cls]['mean'])):

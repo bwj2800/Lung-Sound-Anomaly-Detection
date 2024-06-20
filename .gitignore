@@ -8,4 +8,6 @@ ICBHI_Dataset
 checkpoint
 HF_Lung_V1
 flagged
+demo_audio
+feature
 output_segments

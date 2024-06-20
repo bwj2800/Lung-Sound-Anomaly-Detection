@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Read the data from the text file
-file_path = 'feature_stats_per_class.txt'
+file_path = 'feature/feature_stats_per_class.txt'
 
 data = {
     'normal': {'mean': [], 'std': []},

@@ -1,54 +1,17 @@
 import gradio as gr
-from sklearn.model_selection import train_test_split
-
-from sklearn.decomposition import KernelPCA
-from sklearn.preprocessing import MinMaxScaler
 import joblib
 import librosa
 import numpy as np
-import pandas as pd
 import os
 import joblib
-import wave
-
+import cv2
 import scipy
 from scipy.stats import skew
 from scipy.stats import kurtosis
 from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
 
-# def detect_respiratory_cycles(audio, sample_rate=16000):
-#     # Use RMS energy to detect respiratory cycles
-#     frame_length = int(0.1 * sample_rate)  # 100ms frame
-#     hop_length = int(0.05 * sample_rate)  # 50ms hop
-    
-#     rms = librosa.feature.rms(audio, frame_length=frame_length, hop_length=hop_length)[0]
-#     threshold = np.mean(rms) * 1.5  # You may need to adjust this threshold
-    
-#     cycles = []
-#     current_cycle = []
-#     is_inhale = False
-    
-#     for i, energy in enumerate(rms):
-#         if energy > threshold and not is_inhale:
-#             if current_cycle:
-#                 cycles.append(current_cycle)
-#             current_cycle = [i]
-#             is_inhale = True
-#         elif energy <= threshold and is_inhale:
-#             current_cycle.append(i)
-#             is_inhale = False
-    
-#     if current_cycle:
-#         cycles.append(current_cycle)
-    
-#     cycle_audio_segments = []
-#     for cycle in cycles:
-#         start_frame = cycle[0] * hop_length
-#         end_frame = cycle[-1] * hop_length + frame_length
-#         cycle_audio_segments.append(audio[start_frame:end_frame])
-    
-#     return cycle_audio_segments
+import cmapy
 
 def align_length(sample, sample_rate=16000, desiredLength=10):
     print('desiredLength*sample_rate: ', desiredLength*sample_rate)
@@ -76,7 +39,6 @@ def compute_14_features(region):
     """ Compute 14 features """
     temp_array=region.reshape(-1)
     all_pixels=temp_array[temp_array!=0]
-    
     # adding noise
     # all_pixels += np.random.normal(0, 1e-8, all_pixels.shape) 
     all_pixels += 1e-8
@@ -144,6 +106,11 @@ def plot_feature(feature, title):
 def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=4000, nfft=2048, hop=512):    
     S = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
     S_db = librosa.power_to_db(S, ref=np.max)
+
+    S_img = (S_db-S_db.min()) / (S_db.max() - S_db.min())
+    S_img *= 255
+    img = cv2.applyColorMap(S_img.astype(np.uint8), cmapy.cmap('magma'))
+    img = cv2.flip(img, 0)
 
     # Apply Mel-Spectrogram Filter
     # Define filter parameters
@@ -222,7 +189,41 @@ def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=4000, nfft=
     num_features=462
     feature_vector=np.concatenate((total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features), axis=0).reshape(1,num_features)
     
-    return feature_vector
+    return feature_vector, total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features, img
+
+# def read_class_means(filepath):
+#     means = []
+#     with open(filepath, 'r') as file:
+#         lines = file.readlines()[1:]  # 첫 번째 줄은 헤더이므로 생략
+#         for line in lines:
+#             parts = line.strip().split()
+#             means.append(float(parts[1]))
+#     return np.array(means)
+def read_class_means(filepath):
+    class_means = {}
+    with open(filepath, 'r') as file:
+        lines = file.readlines()[1:]
+        for line in lines:
+            parts = line.strip().split()
+            class_name = parts[0]
+            feature_index = int(parts[1])
+            mean = float(parts[2])
+            if class_name not in class_means:
+                class_means[class_name] = []
+            class_means[class_name].append(mean)
+    return class_means
+
+def create_mel_raw(current_window, sample_rate, n_mels=128, f_min=50, f_max=4000, nfft=2048, hop=512, resz=1):
+	S = librosa.feature.melspectrogram(y=current_window, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
+	S = librosa.power_to_db(S, ref=np.max)
+	S = (S-S.min()) / (S.max() - S.min())
+	S *= 255
+	img = cv2.applyColorMap(S.astype(np.uint8), cmapy.cmap('magma'))
+	height, width, _ = img.shape
+	if resz > 0:
+		img = cv2.resize(img, (width*resz, height*resz), interpolation=cv2.INTER_LINEAR)
+	# img = cv2.flip(img, 0)
+	return img
 
 def classify_respiratory_sound(audio):
     sr, data = audio
@@ -240,16 +241,16 @@ def classify_respiratory_sound(audio):
     else:
         data_mono = data_resampled
     
-    scaler_path ="./checkpoint/scaler252.pkl"
-    transformer_path="./checkpoint/transformer252.pkl"
+    scaler_path ="./checkpoint/scaler462.pkl"
+    transformer_path="./checkpoint/transformer462.pkl"
     min_max_scaler = joblib.load(scaler_path)
     transformer = joblib.load(transformer_path)
-    model= load_model('checkpoint/model252.h5')
+    model= load_model('checkpoint/model462.h5')
         
     print(data_mono.shape, data_mono.shape[0]/sample_rate)
     data_mono=align_length(data_mono, sample_rate=sample_rate)
     print(data_mono.shape, data_mono.shape[0]/sample_rate)
-    feature_vector=feature_extractor(audio=data_mono, sample_rate=sample_rate)
+    feature_vector, total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features, img = feature_extractor(audio=data_mono, sample_rate=sample_rate)
     
     print(min(feature_vector[0]),max(feature_vector[0]))
     
@@ -264,21 +265,98 @@ def classify_respiratory_sound(audio):
     print(":::Prediction made")   
     print(Y_Score)
     y_pred = np.argmax(Y_Score, axis=1)
-    # results.append(make_prediction(y_pred))
     
-    return make_prediction(y_pred)
+    prediction = make_prediction(y_pred)
+
     
+    class_means = read_class_means('feature/feature_stats_per_class.txt')
+    
+    plt.figure(figsize=(20, 6))
+    plt.plot(X[0], label='Sample Features')
+    for class_name, means in class_means.items():
+        print(class_name)
+        print(means[0])
+        plt.plot(means, label=f'{class_name.capitalize()} Means', linestyle='--')
+    plt.xlabel('Feature Index')
+    plt.ylabel('Feature Value')
+    plt.legend()
+    plt.title('Sample Features and Class Means')
+    plt.savefig('features.png')
+    
+    
+    # txt_dir='feature/'
+    # spectral_means_both = read_class_means(txt_dir+'feature_spectral_both.txt')
+    # spectral_means_crackle = read_class_means(txt_dir+'feature_spectral_crackle.txt')
+    # spectral_means_normal = read_class_means(txt_dir+'feature_spectral_normal.txt')
+    # spectral_means_wheeze = read_class_means(txt_dir+'feature_spectral_wheeze.txt')
+    # chroma_means_both = read_class_means(txt_dir+'feature_chroma_both.txt')
+    # chroma_means_crackle = read_class_means(txt_dir+'feature_chroma_crackle.txt')
+    # chroma_means_normal = read_class_means(txt_dir+'feature_chroma_normal.txt')
+    # chroma_means_wheeze = read_class_means(txt_dir+'feature_chroma_wheeze.txt')
+    # mfcc_means_both = read_class_means(txt_dir+'feature_mfcc_both.txt')
+    # mfcc_means_crackle = read_class_means(txt_dir+'feature_mfcc_crackle.txt')
+    # mfcc_means_normal = read_class_means(txt_dir+'feature_mfcc_normal.txt')
+    # mfcc_means_wheeze = read_class_means(txt_dir+'feature_mfcc_wheeze.txt')
+    # poly_means_both = read_class_means(txt_dir+'feature_poly_both.txt')
+    # poly_means_crackle = read_class_means(txt_dir+'feature_poly_crackle.txt')
+    # poly_means_normal = read_class_means(txt_dir+'feature_poly_normal.txt')
+    # poly_means_wheeze = read_class_means(txt_dir+'feature_poly_wheeze.txt')
+    
+    # fig, axs = plt.subplots(4, 1, figsize=(10, 20))
+    
+    # axs[0].plot(total_spectral_features, label='Extracted Features')
+    # axs[0].plot(spectral_means_normal, label='Normal', linestyle='dashed')
+    # axs[0].plot(spectral_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[0].plot(spectral_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[0].plot(spectral_means_both, label='Both', linestyle='dashed')
+    # axs[0].set_title('Spectral Features')
+    # axs[0].legend()
+    
+    # axs[1].plot(total_chroma_features, label='Extracted Features')
+    # axs[1].plot(chroma_means_normal, label='Normal', linestyle='dashed')
+    # axs[1].plot(chroma_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[1].plot(chroma_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[1].plot(chroma_means_both, label='Both', linestyle='dashed')
+    # axs[1].set_title('Chroma Features')
+    # axs[1].legend()
+    
+    # axs[2].plot(total_mfcc_features, label='Extracted Features')
+    # axs[2].plot(mfcc_means_normal, label='Normal', linestyle='dashed')
+    # axs[2].plot(mfcc_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[2].plot(mfcc_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[2].plot(mfcc_means_both, label='Both', linestyle='dashed')
+    # axs[2].set_title('MFCC Features')
+    # axs[2].legend()
+    
+    # # axs[3].plot(total_poly_features)
+    # axs[3].plot(total_poly_features, label='Extracted Features')
+    # axs[3].plot(poly_means_normal, label='Normal', linestyle='dashed')
+    # axs[3].plot(poly_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[3].plot(poly_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[3].plot(poly_means_both, label='Both', linestyle='dashed')
+    # axs[3].set_title('Poly Features')
+    # axs[3].legend()
+    
+    plt.tight_layout()
+    plt.savefig('features.png')
+    
+    return prediction, img, 'features.png'
+
 example_files = [
-    "ICBHI_Dataset/audio_and_txt_files/104_1b1_Al_sc_Litt3200.wav",
-    "ICBHI_Dataset/audio_and_txt_files/107_2b3_Ll_mc_AKGC417L.wav",
-    "ICBHI_Dataset/audio_and_txt_files/221_2b1_Pl_mc_LittC2SE.wav",
-    "ICBHI_Dataset/audio_and_txt_files/107_2b3_Ar_mc_AKGC417L.wav"    
+    "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_5.wav",
+    "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_6.wav",
+    "demo_audio/crackle_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
+    "demo_audio/crackle_107_2b3_Ar_mc_AKGC417L_segment_4.wav",
+    "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_3.wav",
+    "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_5.wav",
+    "demo_audio/both_107_2b3_Ll_mc_AKGC417L_segment_4.wav",
+    "demo_audio/breath2.wav",     
 ]
 
 demo = gr.Interface(
     fn=classify_respiratory_sound, 
     inputs=gr.Audio(),
-    outputs=["text", "plot", "plot", "plot", "plot"],
+    outputs=["text","image", "image"],
     examples=example_files)
- 
+
 demo.launch()
