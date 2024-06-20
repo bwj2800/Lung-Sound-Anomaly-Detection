@@ -137,7 +137,7 @@ def classify_respiratory_sound(audio):
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    model.load_state_dict(torch.load('best_resnet18_2.pth'))
+    model.load_state_dict(torch.load('checkpoint/best_resnet18_2.pth'))
     model.eval()
     
     # 이미지 변환 적용
@@ -162,12 +162,31 @@ def classify_respiratory_sound(audio):
 example_files = [
     "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_5.wav",
     "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_6.wav",
-    "demo_audio/crackle_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
-    "demo_audio/crackle_107_2b3_Ar_mc_AKGC417L_segment_4.wav",
+    
+    "demo_audio/crackle_107_2b3_Ll_mc_AKGC417L_segment_4.wav",
+    
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_3.wav",
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_5.wav",
-    "demo_audio/both_107_2b3_Ll_mc_AKGC417L_segment_4.wav",
+    
+    "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
+    "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_4.wav",
     "demo_audio/breath2.wav",     
+    "demo_audio/Crackle_1.wav",
+    "demo_audio/Crackle_2.wav",     
+    "demo_audio/Crackle_3.wav",     
+    "demo_audio/Crackle_4.wav",     
+    "demo_audio/Crackle_5.wav",     
+    "demo_audio/Crackle_6.wav",       
+    "demo_audio/Wheeze_1.wav",
+    "demo_audio/Wheeze_2.wav",     
+    "demo_audio/Wheeze_3.wav",          
+    "demo_audio/Crackle_7_Lit.wav",
+    "demo_audio/Crackle_8_Lit.wav",     
+    "demo_audio/Crackle_9_Lit.wav",          
+    "demo_audio/Wheeze_4_Lit.wav",
+    "demo_audio/Wheeze_5_Lit.wav",     
+    "demo_audio/Wheeze_6_Lit.wav",         
+    "demo_audio/steth_wheeze.wav"  
 ]
 
 demo = gr.Interface(
