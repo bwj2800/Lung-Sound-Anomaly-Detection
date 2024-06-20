@@ -15,6 +15,7 @@ import scipy
 from scipy.stats import skew
 from scipy.stats import kurtosis
 from tensorflow.keras.models import load_model
+import matplotlib.pyplot as plt
 
 # def detect_respiratory_cycles(audio, sample_rate=16000):
 #     # Use RMS energy to detect respiratory cycles
@@ -77,7 +78,8 @@ def compute_14_features(region):
     all_pixels=temp_array[temp_array!=0]
     
     # adding noise
-    all_pixels += np.random.normal(0, 1e-8, all_pixels.shape) 
+    # all_pixels += np.random.normal(0, 1e-8, all_pixels.shape) 
+    all_pixels += 1e-8
     
 #    Area
     Area = np.sum(all_pixels)
@@ -115,7 +117,9 @@ def compute_14_features(region):
     features = np.array([Area, density, std_Density,
         Skewness, Kurtosis,ENERGY, ENTROPY,
         MAX, mean_absolute_deviation, MEDIAN, MIN, RANGE, RMS, UNIFORMITY])
+    print(features.isnan())
     return features
+
 
 def make_prediction(output):
     if output==0:
@@ -126,6 +130,16 @@ def make_prediction(output):
         return "Wheeze"
     else:
         return "Both(Crackle&Wheeze)"
+
+
+def plot_feature(feature, title):
+    plt.figure(figsize=(10, 4))
+    librosa.display.specshow(feature, x_axis='time')
+    plt.colorbar()
+    plt.title(title)
+    plt.tight_layout()
+    plt.close()
+    return plt
 
 def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=4000, nfft=2048, hop=512):    
     S = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
@@ -264,7 +278,7 @@ example_files = [
 demo = gr.Interface(
     fn=classify_respiratory_sound, 
     inputs=gr.Audio(),
-    outputs="text",
+    outputs=["text", "plot", "plot", "plot", "plot"],
     examples=example_files)
  
 demo.launch()
