@@ -11,3 +11,4 @@ flagged
 demo_audio
 feature
 output_segments
+*.pth

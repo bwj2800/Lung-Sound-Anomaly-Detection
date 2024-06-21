@@ -143,10 +143,10 @@ with torch.no_grad():
     # 클래스별 성능 계산
     s_normal = avg_cm[0][0]/(avg_cm[0][0] + avg_cm[0][1] + avg_cm[0][2] + avg_cm[0][3])
     s_crackle = avg_cm[1][1]/(avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
-    s_wheezle = avg_cm[2][2]/(avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
+    s_wheeze = avg_cm[2][2]/(avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
     s_both = avg_cm[3][3]/(avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
 
     print(f'normal: {s_normal:.2%}')
     print(f'Crackle: {s_crackle:.2%}')
-    print(f'Wheezle: {s_wheezle:.2%}')
+    print(f'Wheeze: {s_wheeze:.2%}')
     print(f'Both: {s_both:.2%}')
