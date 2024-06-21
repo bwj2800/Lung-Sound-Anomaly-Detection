@@ -300,15 +300,16 @@ def classify_respiratory_sound(audio):
     return prediction, mel_img, 'features.png'
 
 example_files = [
-    "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_5.wav",
+    # "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_5.wav",
     "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_6.wav",
+    'demo_audio/normal_107_2b3_Pl_mc_AKGC417L_segment_8.wav',
     
     "demo_audio/crackle_107_2b3_Ll_mc_AKGC417L_segment_4.wav",
     
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_3.wav",
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_5.wav",
     
-    "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
+    # "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
     "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_4.wav",
 ]
 
