@@ -3,15 +3,35 @@ import joblib
 import librosa
 import numpy as np
 import os
-import joblib
 import cv2
 import scipy
 from scipy.stats import skew
 from scipy.stats import kurtosis
-from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
-
+import torch.nn as nn
+import torch
+from PIL import Image
+from torchvision import models, transforms
 import cmapy
+
+
+# ResNet 모델 수정
+class MultiInputResNet(nn.Module):
+    def __init__(self, num_classes, feature_dim):
+        super(MultiInputResNet, self).__init__()
+        self.resnet = models.resnet18(pretrained=True)
+        num_features = self.resnet.fc.in_features
+        self.resnet.fc = nn.Identity()
+        self.fc1 = nn.Linear(num_features + feature_dim, 512)
+        self.fc2 = nn.Linear(512, num_classes)
+
+    def forward(self, x_image, x_features):
+        x = self.resnet(x_image)
+        x = torch.cat((x, x_features), dim=1)
+        x = nn.ReLU()(self.fc1(x))
+        x = nn.Dropout(0.5)(x)
+        x = self.fc2(x)
+        return x
 
 def align_length(sample, sample_rate=16000, desiredLength=10):
     print('desiredLength*sample_rate: ', desiredLength*sample_rate)
@@ -35,82 +55,10 @@ def align_length(sample, sample_rate=16000, desiredLength=10):
         
     return np.array(copy_repeat_sample)
 
-def compute_14_features(region):
-    """ Compute 14 features """
-    temp_array=region.reshape(-1)
-    all_pixels=temp_array[temp_array!=0]
-    # adding noise
-    # all_pixels += np.random.normal(0, 1e-8, all_pixels.shape) 
-    all_pixels += 1e-8
-    
-#    Area
-    Area = np.sum(all_pixels)
-#    mean
-    density = np.mean(all_pixels)
-#   Std
-    std_Density = np.std(all_pixels)
-#   skewness
-    Skewness = skew(all_pixels)
-#   kurtosis
-    Kurtosis = kurtosis(all_pixels)
-#   Energy
-    ENERGY =np.sum(np.square(all_pixels))
-#   Entropy
-    value,counts = np.unique(all_pixels, return_counts=True)
-    p = counts / np.sum(counts)
-    p =  p[p!=0]
-    ENTROPY =-np.sum( p*np.log2(p))
-#   Maximum
-    MAX = np.max(all_pixels)
-#   Mean Absolute Deviation
-    sum_deviation= np.sum(np.abs(all_pixels-np.mean(all_pixels)))
-    mean_absolute_deviation = sum_deviation/len(all_pixels)
-#   Median
-    MEDIAN = np.median(all_pixels)
-#   Minimum
-    MIN = np.min(all_pixels)
-#   Range
-    RANGE = np.max(all_pixels)-np.min(all_pixels)
-#   Root Mean Square
-    RMS = np.sqrt(np.mean(np.square(all_pixels))) 
-#    Uniformity
-    UNIFORMITY = np.sum(np.square(p))
-
-    features = np.array([Area, density, std_Density,
-        Skewness, Kurtosis,ENERGY, ENTROPY,
-        MAX, mean_absolute_deviation, MEDIAN, MIN, RANGE, RMS, UNIFORMITY])
-    print(features.isnan())
-    return features
-
-
-def make_prediction(output):
-    if output==0:
-        return "Normal"
-    if output==1:
-        return "Crackle"
-    if output==2:
-        return "Wheeze"
-    else:
-        return "Both(Crackle&Wheeze)"
-
-
-def plot_feature(feature, title):
-    plt.figure(figsize=(10, 4))
-    librosa.display.specshow(feature, x_axis='time')
-    plt.colorbar()
-    plt.title(title)
-    plt.tight_layout()
-    plt.close()
-    return plt
 
 def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=4000, nfft=2048, hop=512):    
     S = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
     S_db = librosa.power_to_db(S, ref=np.max)
-
-    S_img = (S_db-S_db.min()) / (S_db.max() - S_db.min())
-    S_img *= 255
-    img = cv2.applyColorMap(S_img.astype(np.uint8), cmapy.cmap('magma'))
-    img = cv2.flip(img, 0)
 
     # Apply Mel-Spectrogram Filter
     # Define filter parameters
@@ -189,16 +137,64 @@ def feature_extractor(audio, sample_rate, n_mels=64, f_min=50, f_max=4000, nfft=
     num_features=462
     feature_vector=np.concatenate((total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features), axis=0).reshape(1,num_features)
     
-    return feature_vector, total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features, img
+    return feature_vector, total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features
 
-# def read_class_means(filepath):
-#     means = []
-#     with open(filepath, 'r') as file:
-#         lines = file.readlines()[1:]  # 첫 번째 줄은 헤더이므로 생략
-#         for line in lines:
-#             parts = line.strip().split()
-#             means.append(float(parts[1]))
-#     return np.array(means)
+
+def compute_14_features(region):
+    """ Compute 14 features """
+    temp_array=region.reshape(-1)
+    all_pixels=temp_array[temp_array!=0]
+    # adding noise
+    all_pixels += np.random.normal(0, 1e-8, all_pixels.shape) 
+    
+#    Area
+    Area = np.sum(all_pixels)
+#    mean
+    density = np.mean(all_pixels)
+#   Std
+    std_Density = np.std(all_pixels)
+#   skewness
+    Skewness = skew(all_pixels)
+#   kurtosis
+    Kurtosis = kurtosis(all_pixels)
+#   Energy
+    ENERGY =np.sum(np.square(all_pixels))
+#   Entropy
+    value,counts = np.unique(all_pixels, return_counts=True)
+    p = counts / np.sum(counts)
+    p =  p[p!=0]
+    ENTROPY =-np.sum( p*np.log2(p))
+#   Maximum
+    MAX = np.max(all_pixels)
+#   Mean Absolute Deviation
+    sum_deviation= np.sum(np.abs(all_pixels-np.mean(all_pixels)))
+    mean_absolute_deviation = sum_deviation/len(all_pixels)
+#   Median
+    MEDIAN = np.median(all_pixels)
+#   Minimum
+    MIN = np.min(all_pixels)
+#   Range
+    RANGE = np.max(all_pixels)-np.min(all_pixels)
+#   Root Mean Square
+    RMS = np.sqrt(np.mean(np.square(all_pixels))) 
+#    Uniformity
+    UNIFORMITY = np.sum(np.square(p))
+
+    features = np.array([Area, density, std_Density,
+        Skewness, Kurtosis,ENERGY, ENTROPY,
+        MAX, mean_absolute_deviation, MEDIAN, MIN, RANGE, RMS, UNIFORMITY])
+    return features
+
+def make_prediction(output):
+    if output==0:
+        return "Normal"
+    if output==1:
+        return "Crackle"
+    if output==2:
+        return "Wheeze"
+    else:
+        return "Both(Crackle&Wheeze)"
+    
 def read_class_means(filepath):
     class_means = {}
     with open(filepath, 'r') as file:
@@ -213,17 +209,16 @@ def read_class_means(filepath):
             class_means[class_name].append(mean)
     return class_means
 
-def create_mel_raw(current_window, sample_rate, n_mels=128, f_min=50, f_max=4000, nfft=2048, hop=512, resz=1):
-	S = librosa.feature.melspectrogram(y=current_window, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
-	S = librosa.power_to_db(S, ref=np.max)
-	S = (S-S.min()) / (S.max() - S.min())
-	S *= 255
-	img = cv2.applyColorMap(S.astype(np.uint8), cmapy.cmap('magma'))
-	height, width, _ = img.shape
-	if resz > 0:
-		img = cv2.resize(img, (width*resz, height*resz), interpolation=cv2.INTER_LINEAR)
-	# img = cv2.flip(img, 0)
-	return img
+def get_mel_img(audio, sample_rate, n_mels=64, f_min=50, f_max=4000, nfft=2048, hop=512):    
+    S = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels=n_mels, fmin=f_min, fmax=f_max, n_fft=nfft, hop_length=hop)
+    S_db = librosa.power_to_db(S, ref=np.max)
+
+    S_img = (S_db-S_db.min()) / (S_db.max() - S_db.min())
+    S_img *= 255
+    img = cv2.applyColorMap(S_img.astype(np.uint8), cmapy.cmap('magma'))
+    img = cv2.flip(img, 0)
+
+    return img
 
 def classify_respiratory_sound(audio):
     sr, data = audio
@@ -240,40 +235,61 @@ def classify_respiratory_sound(audio):
         data_mono = librosa.to_mono(data_resampled)
     else:
         data_mono = data_resampled
+        
+    data_mono=align_length(data_mono, sample_rate=sample_rate)
+    mel_img = get_mel_img(audio=data_mono, sample_rate=sample_rate)
     
-    scaler_path ="./checkpoint/scaler462.pkl"
-    transformer_path="./checkpoint/transformer462.pkl"
+    # 이미지 변환 적용
+    transform = transforms.Compose([
+        transforms.Resize((224,224)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+    
+    mel_img_transformed = transform(Image.fromarray(mel_img))
+    mel_img_transformed = mel_img_transformed.unsqueeze(0)
+    
+    # 모델 초기화
+    scaler_path ="./checkpoint/scaler.pkl"
+    transformer_path="./checkpoint/transformer.pkl"
+    model_path='checkpoint/best_resnet_fdse_1.pth'
+    
     min_max_scaler = joblib.load(scaler_path)
     transformer = joblib.load(transformer_path)
-    model= load_model('checkpoint/model462.h5')
-        
-    print(data_mono.shape, data_mono.shape[0]/sample_rate)
-    data_mono=align_length(data_mono, sample_rate=sample_rate)
-    print(data_mono.shape, data_mono.shape[0]/sample_rate)
-    feature_vector, total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features, img = feature_extractor(audio=data_mono, sample_rate=sample_rate)
+    
+    feature_dim = 184  # PCA로 축소된 추가 특징의 차원
+    num_classes = 4
+    model = MultiInputResNet(num_classes, feature_dim)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+
+    feature_vector, total_chroma_features, total_spectral_features, total_mfcc_features, total_poly_features = feature_extractor(audio=data_mono, sample_rate=sample_rate)
     
     print(min(feature_vector[0]),max(feature_vector[0]))
     
-    X = min_max_scaler.transform(feature_vector)
-    X = transformer.transform(X)
-    print("X.shape",X.shape)
-    
-    np.set_printoptions(precision=5, suppress=True)
-    print(X[0,:15])
-    
-    Y_Score=model.predict(X)
-    print(":::Prediction made")   
-    print(Y_Score)
-    y_pred = np.argmax(Y_Score, axis=1)
-    
-    prediction = make_prediction(y_pred)
+    feature = min_max_scaler.transform(feature_vector)
+    feature = transformer.transform(feature)
+    feature = torch.tensor(feature, dtype=torch.float32)
 
+    with torch.no_grad():
+        outputs = model(mel_img_transformed.to(device), feature.to(device))
+        _, predicted = torch.max(outputs.data, 1)
+
+    print("outputs",outputs)
+    print("predicted",predicted)
     
+    prediction = make_prediction(predicted)
+    
+    # Plot
     class_means = read_class_means('feature/feature_stats_per_class.txt')
     
     plt.figure(figsize=(20, 6))
-    plt.plot(X[0], label='Sample Features')
+    plt.plot(feature[0], label='Sample Features')
     for class_name, means in class_means.items():
+        print(class_name)
+        print(means[0])
         plt.plot(means, label=f'{class_name.capitalize()} Means', linestyle='--')
     plt.xlabel('Feature Index')
     plt.ylabel('Feature Value')
@@ -281,40 +297,20 @@ def classify_respiratory_sound(audio):
     plt.title('Sample Features and Class Means')
     plt.savefig('features.png')
     
-    
-    plt.tight_layout()
-    plt.savefig('features.png')
-    
-    return prediction, img, 'features.png'
+    return prediction, mel_img, 'features.png'
 
 example_files = [
-    "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_5.wav",
+    # "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_5.wav",
     "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_6.wav",
+    'demo_audio/normal_107_2b3_Pl_mc_AKGC417L_segment_8.wav',
     
     "demo_audio/crackle_107_2b3_Ll_mc_AKGC417L_segment_4.wav",
     
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_3.wav",
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_5.wav",
     
-    "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
+    # "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
     "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_4.wav",
-    "demo_audio/breath2.wav",     
-    "demo_audio/Crackle_1.wav",
-    "demo_audio/Crackle_2.wav",     
-    "demo_audio/Crackle_3.wav",     
-    "demo_audio/Crackle_4.wav",     
-    "demo_audio/Crackle_5.wav",     
-    "demo_audio/Crackle_6.wav",       
-    "demo_audio/Wheeze_1.wav",
-    "demo_audio/Wheeze_2.wav",     
-    "demo_audio/Wheeze_3.wav",          
-    "demo_audio/Crackle_7_Lit.wav",
-    "demo_audio/Crackle_8_Lit.wav",     
-    "demo_audio/Crackle_9_Lit.wav",          
-    "demo_audio/Wheeze_4_Lit.wav",
-    "demo_audio/Wheeze_5_Lit.wav",     
-    "demo_audio/Wheeze_6_Lit.wav",         
-    "demo_audio/steth_wheeze.wav"  
 ]
 
 demo = gr.Interface(

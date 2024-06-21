@@ -12,3 +12,4 @@ demo_audio
 feature
 output_segments
 *.pth
+*.pkl
