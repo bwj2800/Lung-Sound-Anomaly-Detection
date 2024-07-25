@@ -12,3 +12,4 @@ demo_audio
 feature
 *.pth
 *.pkl
+__pycache__
