@@ -28,23 +28,17 @@ class MultilevelTCNModel(nn.Module):
     def __init__(self, num_classes):
         super(MultilevelTCNModel, self).__init__()
         # Pre-trained VGG19 model for feature extraction
-        self.vgg19_chroma = models.vgg19(weights='VGG19_Weights.DEFAULT').features
-        self.vgg19_mfcc = models.vgg19(weights='VGG19_Weights.DEFAULT').features
-        self.vgg19_mel = models.vgg19(weights='VGG19_Weights.DEFAULT').features
+        self.vgg19_chroma = models.vgg19(pretrained=True).features
+        self.vgg19_mfcc = models.vgg19(pretrained=True).features
+        self.vgg19_mel = models.vgg19(pretrained=True).features
 
         # Multilevel TCN blocks
-        self.residual_blocks_chroma1 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 3)])
-        self.residual_blocks_chroma2 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 3), ResidualBlock(512, 512, 9)])
-        
-        self.residual_blocks_mfcc1 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 3)])
-        self.residual_blocks_mfcc2 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 3), ResidualBlock(512, 512, 9)])
-        
-        self.residual_blocks_mel1 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 3)])
-        self.residual_blocks_mel2 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 3), ResidualBlock(512, 512, 9)])
+        self.residual_blocks1 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 4)])
+        self.residual_blocks2 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 3), ResidualBlock(512, 512, 9)])
 
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(512 * 6, 128)  # 512 channels * 6 TCN blocks * 3 inputs
+        self.fc1 = nn.Linear(512 * 2, 128)
         self.fc2 = nn.Linear(128, num_classes)
 
     def forward(self, chroma, mfcc, mel):
@@ -58,39 +52,23 @@ class MultilevelTCNModel(nn.Module):
         mfcc_features = mfcc_features.view(mfcc_features.size(0), mfcc_features.size(1), -1)
         mel_features = mel_features.view(mel_features.size(0), mel_features.size(1), -1)
 
-        # Apply TCN blocks to chroma features
-        chroma1 = chroma_features.clone()
-        chroma2 = chroma_features.clone()
-        for block in self.residual_blocks_chroma1:
-            chroma1 = block(chroma1)
-        for block in self.residual_blocks_chroma2:
-            chroma2 = block(chroma2)
-        chroma_out = torch.cat((chroma1, chroma2), dim=1)
+        # Concatenate features from all inputs
+        combined_features = torch.cat((chroma_features, mfcc_features, mel_features), dim=2)
 
-        # Apply TCN blocks to mfcc features
-        mfcc1 = mfcc_features.clone()
-        mfcc2 = mfcc_features.clone()
-        for block in self.residual_blocks_mfcc1:
-            mfcc1 = block(mfcc1)
-        for block in self.residual_blocks_mfcc2:
-            mfcc2 = block(mfcc2)
-        mfcc_out = torch.cat((mfcc1, mfcc2), dim=1)
+        # Apply TCN blocks
+        x1 = combined_features.clone()
+        x2 = combined_features.clone()
+        for block in self.residual_blocks1:
+            x1 = block(x1)
+        for block in self.residual_blocks2:
+            x2 = block(x2)
 
-        # Apply TCN blocks to mel features
-        mel1 = mel_features.clone()
-        mel2 = mel_features.clone()
-        for block in self.residual_blocks_mel1:
-            mel1 = block(mel1)
-        for block in self.residual_blocks_mel2:
-            mel2 = block(mel2)
-        mel_out = torch.cat((mel1, mel2), dim=1)
-
-        # Concatenate the outputs from all TCN blocks
-        combined_out = torch.cat((chroma_out, mfcc_out, mel_out), dim=1)
+        # Concatenate the outputs from TCN blocks
+        combined_out = torch.cat((x1, x2), dim=1)
 
         # Global average pooling and fully connected layers
         combined_out = self.global_avg_pool(combined_out).squeeze(-1)
-        combined_out = self.flatten(combined_out)
+        # combined_out = self.flatten(combined_out)
         combined_out = self.fc1(combined_out)
         combined_out = self.fc2(combined_out)
 
