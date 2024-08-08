@@ -49,7 +49,7 @@ class GLUClassifierModule(nn.Module):
         return x
 
 class RDLINet(nn.Module):
-    def __init__(self, num_classes=7):
+    def __init__(self, num_classes=4):
         super(RDLINet, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, padding=1)
         self.leaky_relu = nn.LeakyReLU(0.3)
@@ -77,7 +77,7 @@ class RDLINet(nn.Module):
 
 if __name__ == "__main__":
     # 모델 초기화 및 테스트
-    model = RDLINet(num_classes=7)
+    model = RDLINet(num_classes=4)
     print(model)
 
     # 임의의 입력 데이터로 테스트
