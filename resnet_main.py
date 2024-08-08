@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 # 데이터셋 경로
-data_dir = 'data_4gr/mel_image'
+data_dir = 'data_4gr/mel_image_new'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -62,7 +62,7 @@ test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 print("data loader ready")
 
 # ResNet 모델 사용
-model = models.resnet18(pretrained=True)
+model = models.resnet50(pretrained=True)
 num_features = model.fc.in_features
 model.fc = nn.Linear(num_features, len(label_map))
 
