@@ -9,7 +9,7 @@ from PIL import Image
 from model.tcn import MultilevelTCNModel
 
 # 데이터셋 경로
-image_dir = 'data_4gr/mel_image'
+image_dir = 'data_4gr/mel_image_new'
 model_save_path = './checkpoint/tcn_1.pth'
 
 # 라벨 매핑
