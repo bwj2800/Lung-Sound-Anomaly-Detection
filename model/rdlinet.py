@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 class DepthwiseSeparableConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, padding=0):
@@ -38,41 +37,39 @@ class GLUClassifierModule(nn.Module):
         self.fc2 = nn.Linear(in_channels, 15)
         self.sigmoid = nn.Sigmoid()
         self.fc3 = nn.Linear(15, num_classes)
-        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x1 = self.fc1(x)
         x2 = self.sigmoid(self.fc2(x))
         x = x1 * x2
         x = self.fc3(x)
-        x = self.softmax(x)
         return x
 
 class RDLINet(nn.Module):
     def __init__(self, num_classes=4):
         super(RDLINet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1)
         self.leaky_relu = nn.LeakyReLU(0.3)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.depthwise_conv = DepthwiseSeparableConv(16, 32, kernel_size=3, padding=1)
-        self.pointwise_conv = nn.Conv2d(16, 32, kernel_size=1)
+        self.pointwise_conv = nn.Conv2d(32, 32, kernel_size=1)
         self.mfli1 = MFLIBlock(32)
-        self.mfli2 = MFLIBlock(64)
+        self.mfli2 = MFLIBlock(144)
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.glu_classifier = GLUClassifierModule(64, num_classes)
+        self.glu_classifier = GLUClassifierModule(144, num_classes)
 
     def forward(self, x):
-        x = self.leaky_relu(self.conv1(x))
-        x = self.maxpool(x)
-        x = self.leaky_relu(self.depthwise_conv(x))
-        x = self.leaky_relu(self.pointwise_conv(x))
-        x = self.maxpool(x)
-        x = self.mfli1(x)
-        x = self.mfli2(x)
-        x = self.maxpool(x)
-        x = self.global_avg_pool(x)
-        x = x.view(x.size(0), -1)
-        x = self.glu_classifier(x)
+        x = self.leaky_relu(self.conv1(x))         # Output: 32x19x16
+        x = self.maxpool(x)                        # Output: 16x10x16
+        x = self.leaky_relu(self.depthwise_conv(x))# Output: 16x10x16
+        x = self.leaky_relu(self.pointwise_conv(x))# Output: 16x10x32
+        x = self.maxpool(x)                        # Output: 8x5x32
+        x = self.mfli1(x)                          # Output: 8x5x64
+        x = self.mfli2(x)                          # Output: 8x5x64
+        x = self.maxpool(x)                        # Output: 4x2x64
+        x = self.global_avg_pool(x)                # Output: 64x1x1
+        x = x.view(x.size(0), -1)                  # Flatten to 64
+        x = self.glu_classifier(x)                 # Output: 7
         return x
 
 if __name__ == "__main__":
