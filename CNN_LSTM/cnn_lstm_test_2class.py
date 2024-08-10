@@ -12,7 +12,7 @@ from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
 image_dir = './data_4gr/mel_image_cnn_lstm_2class'
-model_save_path = './checkpoint/cnn_lstm_2class_1.pth'
+model_save_path = './checkpoint/cnn_lstm_2class.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
