@@ -173,15 +173,21 @@ def train_and_evaluate():
     print(f'Accuracy on test set: {accuracy:.2f}%')
 
     # 클래스별 성능 계산
-    s_normal = avg_cm[0][0] / (avg_cm[0][0] + avg_cm[0][1] + avg_cm[0][2] + avg_cm[0][3])
     s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
     s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
     s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    
+    S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
+                      (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
+                      +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
+                      +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
+    S_c=(S_p+S_e)/2
 
-    print(f'Normal: {s_normal:.2%}')
-    print(f'Crackle: {s_crackle:.2%}')
-    print(f'Wheeze: {s_wheezle:.2%}')
-    print(f'Both: {s_both:.2%}')
+    print(f'Crackle Accuracy: {s_crackle:.2%}')
+    print(f'Wheeze Accuracy: {s_wheezle:.2%}')
+    print(f'Both Accuracy: {s_both:.2%}')
+    print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
 
     # 학습 결과 시각화 및 저장
     epochs = range(1, num_epochs + 1)
