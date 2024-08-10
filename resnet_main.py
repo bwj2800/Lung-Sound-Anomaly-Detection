@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 # 데이터셋 경로
-data_dir = 'data_4gr/mel_image'
+data_dir = 'data_4gr/mel_image_new'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -62,7 +62,7 @@ test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 print("data loader ready")
 
 # ResNet 모델 사용
-model = models.resnet18(pretrained=True)
+model = models.resnet50(pretrained=True)
 num_features = model.fc.in_features
 model.fc = nn.Linear(num_features, len(label_map))
 
@@ -137,6 +137,18 @@ with torch.no_grad():
     print(f'Accuracy on test set: {100 * correct / total}%')
 
     # 클래스별 성능 계산
-    for i, cls in enumerate(['normal', 'crackle', 'wheeze', 'both']):
-        s = avg_cm[i][i] / np.sum(avg_cm[i])
-        print(f'{cls}: {s:.2%}')
+    s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
+    s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
+    s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    
+    S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
+                      (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
+                      +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
+                      +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
+    S_c=(S_p+S_e)/2
+
+    print(f'Crackle Accuracy: {s_crackle:.2%}')
+    print(f'Wheeze Accuracy: {s_wheezle:.2%}')
+    print(f'Both Accuracy: {s_both:.2%}')
+    print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))

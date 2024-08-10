@@ -13,3 +13,4 @@ feature
 output_segments
 *.pth
 *.pkl
+__pycache__
