@@ -15,7 +15,7 @@ import random
 
 # 데이터셋 경로
 image_dir = 'data_4gr/mel_image'
-model_save_path = './checkpoint/rdlinet_100_melonly.pth'
+model_save_path = './checkpoint/rdlinet_100_melonly_kfold.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -87,17 +87,17 @@ def train_and_evaluate():
         # Subset을 사용하여 train, val, test 데이터셋을 만듭니다.
         train_dataset = Subset(dataset, train_index)
         test_dataset = Subset(dataset, test_index)
-
+        print(len(train_index), len(test_index))
         # 다시 Stratified K-Fold로 train과 val로 나눕니다.
-        val_split = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        train_idx, val_idx = next(val_split.split(train_index, y[train_index]))
+        # val_split = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        # train_idx, val_idx = next(val_split.split(train_index, y[train_index]))
 
-        val_dataset = Subset(dataset, val_idx)
-        train_dataset = Subset(dataset, train_idx)
+        # val_dataset = Subset(dataset, val_idx)
+        # train_dataset = Subset(dataset, train_idx)
 
         # 데이터 로더 생성
         train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
-        val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
+        # val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
         test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=4)
         print("Dataset split")
 
@@ -158,7 +158,7 @@ def train_and_evaluate():
             val_all_labels = []
 
             with torch.no_grad():
-                for images, labels in val_loader:
+                for images, labels in test_loader:
                     images, labels = images.to(device), labels.to(device)
                     outputs = model(images)
                     loss = criterion(outputs, labels)
@@ -167,7 +167,7 @@ def train_and_evaluate():
                     val_all_preds.extend(preds.cpu().numpy())
                     val_all_labels.extend(labels.cpu().numpy())
 
-            val_epoch_loss = val_running_loss / len(val_loader)
+            val_epoch_loss = val_running_loss / len(test_loader)
             val_epoch_acc = accuracy_score(val_all_labels, val_all_preds)
             val_precision, val_recall, val_f1, _ = precision_recall_fscore_support(val_all_labels, val_all_preds, average='weighted')
 
