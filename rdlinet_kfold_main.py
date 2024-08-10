@@ -62,9 +62,9 @@ def train_and_evaluate():
 
     X = np.arange(len(dataset))
     y = np.array(dataset.labels)
-
+    # acc, s_crackle, s_wheezle, s_both, S_e, S_p, S_c, f1score
     fold_metrics = []
-
+    
     for fold, (train_index, test_index) in enumerate(skf.split(X, y)):
         print(f"\nFold {fold+1}/{skf.n_splits}")
 
@@ -166,7 +166,7 @@ def train_and_evaluate():
                 best_accuracy = val_epoch_acc
                 best_model = model.state_dict()
                 torch.save(best_model, model_save_path)
-                print("Model saved")
+                print(f"{epoch+1} Model saved")
 
         # 최적의 모델 로드
         model.load_state_dict(best_model)
@@ -186,14 +186,41 @@ def train_and_evaluate():
                 # 혼동 행렬 계산
                 for i in range(len(labels)):
                     avg_cm[labels[i]][predicted[i]] += 1
-
+        # Fold 마다 지표 계산
         accuracy = 100 * correct / total
-        fold_metrics.append(accuracy)
+        s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
+        s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
+        s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+        
+        S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
+                        (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
+                        +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
+                        +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+        S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
+        S_c=(S_p+S_e)/2
+
+        fold_metrics.append([accuracy, s_crackle, s_wheezle, s_both, S_e, S_p, S_c, f1])
         print(f'Accuracy on test set for fold {fold+1}: {accuracy:.2f}%')
+        print(f'Crackle Accuracy: {s_crackle:.2%}')
+        print(f'Wheeze Accuracy: {s_wheezle:.2%}')
+        print(f'Both Accuracy: {s_both:.2%}')
+        print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
 
     # 전체 Fold에 대한 성능 평균 출력
-    avg_accuracy = np.mean(fold_metrics)
-    print(f'\nAverage Accuracy across all folds: {avg_accuracy:.2f}%')
+    
+    # Fold별 평균 성능 계산
+    fold_metrics = np.array(fold_metrics)
+    mean_metrics = np.mean(fold_metrics, axis=0)
+
+    # avg_accuracy = np.mean(fold_metrics)
+    print(f'\nAverage Accuracy across all folds: {mean_metrics[0]:.2f}%')
+    print(f"Average Crackle Sensitivity: {mean_metrics[1]:.4f}")
+    print(f"Average Wheeze Sensitivity: {mean_metrics[2]:.4f}")
+    print(f"Average Both Sensitivity: {mean_metrics[3]:.4f}")
+    print(f"Average Sensitivity (S_e): {mean_metrics[4]:.4f}")
+    print(f"Average Specificity (S_p): {mean_metrics[5]:.4f}")
+    print(f"Average Score (S_c): {mean_metrics[6]:.4f}")
+    print(f"Average F1 Score: {mean_metrics[7]:.4f}")
 
     # 학습 결과 시각화 및 저장
     epochs = range(1, num_epochs + 1)
