@@ -55,6 +55,8 @@ def test():
     # 데이터셋 생성
     dataset = CustomDataset(image_dir=image_dir, transform=transform)
     # 데이터셋 분할
+    seed = 42  # 원하는 시드 값으로 설정
+    torch.manual_seed(seed)
     train_size = int(0.6 * len(dataset))
     val_size = int(0.2 * len(dataset))
     test_size = len(dataset) - train_size - val_size

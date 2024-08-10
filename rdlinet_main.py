@@ -56,6 +56,8 @@ def train_and_evaluate():
     print("Dataset ready")
 
     # 데이터셋 분할
+    seed = 42  # 원하는 시드 값으로 설정
+    torch.manual_seed(seed)
     train_size = int(0.6 * len(dataset))
     val_size = int(0.2 * len(dataset))
     test_size = len(dataset) - train_size - val_size
