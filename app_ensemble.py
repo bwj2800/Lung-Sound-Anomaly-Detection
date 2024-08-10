@@ -274,6 +274,8 @@ def classify_respiratory_sound(audio):
     plt.figure(figsize=(20, 6))
     plt.plot(X[0], label='Sample Features')
     for class_name, means in class_means.items():
+        print(class_name)
+        print(means[0])
         plt.plot(means, label=f'{class_name.capitalize()} Means', linestyle='--')
     plt.xlabel('Feature Index')
     plt.ylabel('Feature Value')
@@ -281,6 +283,59 @@ def classify_respiratory_sound(audio):
     plt.title('Sample Features and Class Means')
     plt.savefig('features.png')
     
+    
+    # txt_dir='feature/'
+    # spectral_means_both = read_class_means(txt_dir+'feature_spectral_both.txt')
+    # spectral_means_crackle = read_class_means(txt_dir+'feature_spectral_crackle.txt')
+    # spectral_means_normal = read_class_means(txt_dir+'feature_spectral_normal.txt')
+    # spectral_means_wheeze = read_class_means(txt_dir+'feature_spectral_wheeze.txt')
+    # chroma_means_both = read_class_means(txt_dir+'feature_chroma_both.txt')
+    # chroma_means_crackle = read_class_means(txt_dir+'feature_chroma_crackle.txt')
+    # chroma_means_normal = read_class_means(txt_dir+'feature_chroma_normal.txt')
+    # chroma_means_wheeze = read_class_means(txt_dir+'feature_chroma_wheeze.txt')
+    # mfcc_means_both = read_class_means(txt_dir+'feature_mfcc_both.txt')
+    # mfcc_means_crackle = read_class_means(txt_dir+'feature_mfcc_crackle.txt')
+    # mfcc_means_normal = read_class_means(txt_dir+'feature_mfcc_normal.txt')
+    # mfcc_means_wheeze = read_class_means(txt_dir+'feature_mfcc_wheeze.txt')
+    # poly_means_both = read_class_means(txt_dir+'feature_poly_both.txt')
+    # poly_means_crackle = read_class_means(txt_dir+'feature_poly_crackle.txt')
+    # poly_means_normal = read_class_means(txt_dir+'feature_poly_normal.txt')
+    # poly_means_wheeze = read_class_means(txt_dir+'feature_poly_wheeze.txt')
+    
+    # fig, axs = plt.subplots(4, 1, figsize=(10, 20))
+    
+    # axs[0].plot(total_spectral_features, label='Extracted Features')
+    # axs[0].plot(spectral_means_normal, label='Normal', linestyle='dashed')
+    # axs[0].plot(spectral_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[0].plot(spectral_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[0].plot(spectral_means_both, label='Both', linestyle='dashed')
+    # axs[0].set_title('Spectral Features')
+    # axs[0].legend()
+    
+    # axs[1].plot(total_chroma_features, label='Extracted Features')
+    # axs[1].plot(chroma_means_normal, label='Normal', linestyle='dashed')
+    # axs[1].plot(chroma_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[1].plot(chroma_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[1].plot(chroma_means_both, label='Both', linestyle='dashed')
+    # axs[1].set_title('Chroma Features')
+    # axs[1].legend()
+    
+    # axs[2].plot(total_mfcc_features, label='Extracted Features')
+    # axs[2].plot(mfcc_means_normal, label='Normal', linestyle='dashed')
+    # axs[2].plot(mfcc_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[2].plot(mfcc_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[2].plot(mfcc_means_both, label='Both', linestyle='dashed')
+    # axs[2].set_title('MFCC Features')
+    # axs[2].legend()
+    
+    # # axs[3].plot(total_poly_features)
+    # axs[3].plot(total_poly_features, label='Extracted Features')
+    # axs[3].plot(poly_means_normal, label='Normal', linestyle='dashed')
+    # axs[3].plot(poly_means_crackle, label='Crackle', linestyle='dashed')
+    # axs[3].plot(poly_means_wheeze, label='Wheeze', linestyle='dashed')
+    # axs[3].plot(poly_means_both, label='Both', linestyle='dashed')
+    # axs[3].set_title('Poly Features')
+    # axs[3].legend()
     
     plt.tight_layout()
     plt.savefig('features.png')
@@ -290,31 +345,12 @@ def classify_respiratory_sound(audio):
 example_files = [
     "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_5.wav",
     "demo_audio/normal_104_1b1_Al_sc_Litt3200_segment_6.wav",
-    
-    "demo_audio/crackle_107_2b3_Ll_mc_AKGC417L_segment_4.wav",
-    
+    "demo_audio/crackle_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
+    "demo_audio/crackle_107_2b3_Ar_mc_AKGC417L_segment_4.wav",
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_3.wav",
     "demo_audio/wheeze_221_2b1_Pl_mc_LittC2SE_segment_5.wav",
-    
-    "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_2.wav",
-    "demo_audio/both_107_2b3_Ar_mc_AKGC417L_segment_4.wav",
+    "demo_audio/both_107_2b3_Ll_mc_AKGC417L_segment_4.wav",
     "demo_audio/breath2.wav",     
-    "demo_audio/Crackle_1.wav",
-    "demo_audio/Crackle_2.wav",     
-    "demo_audio/Crackle_3.wav",     
-    "demo_audio/Crackle_4.wav",     
-    "demo_audio/Crackle_5.wav",     
-    "demo_audio/Crackle_6.wav",       
-    "demo_audio/Wheeze_1.wav",
-    "demo_audio/Wheeze_2.wav",     
-    "demo_audio/Wheeze_3.wav",          
-    "demo_audio/Crackle_7_Lit.wav",
-    "demo_audio/Crackle_8_Lit.wav",     
-    "demo_audio/Crackle_9_Lit.wav",          
-    "demo_audio/Wheeze_4_Lit.wav",
-    "demo_audio/Wheeze_5_Lit.wav",     
-    "demo_audio/Wheeze_6_Lit.wav",         
-    "demo_audio/steth_wheeze.wav"  
 ]
 
 demo = gr.Interface(
