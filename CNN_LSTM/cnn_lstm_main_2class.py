@@ -4,16 +4,29 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
 from PIL import Image
+import sys
+import numpy as np
+import random
+
+sys.path.append(os.path.abspath('./'))
 from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
-image_dir = 'data_4gr/mel_image_cnn_lstm'
-model_save_path = './checkpoint/cnn_lstm_1.pth'
+image_dir = './data_4gr/mel_image_cnn_lstm_2class'
+model_save_path = './checkpoint/cnn_lstm_2class_1.pth'
 
 # 라벨 매핑
-label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
+
+seed = 42  # 원하는 시드 값으로 설정
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 # Custom Dataset class definition
 class CustomDataset(Dataset):
@@ -42,9 +55,7 @@ class CustomDataset(Dataset):
 
 # Data preprocessing
 transform = transforms.Compose([
-    # transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
 # Create the dataset
@@ -52,9 +63,6 @@ dataset = CustomDataset(image_dir=image_dir, transform=transform)
 print("Dataset ready")
 
 # 데이터셋 분할
-seed = 42  # 원하는 시드 값으로 설정
-torch.manual_seed(seed)
-
 train_size = int(0.6 * len(dataset))
 val_size = int(0.2 * len(dataset))
 test_size = len(dataset) - train_size - val_size
@@ -67,8 +75,8 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers
 print("Dataset split")
 
 # 모델 초기화
-num_classes = len(label_map)
-model = CNN_LSTM()
+num_class = 2
+model = CNN_LSTM(num_class=num_class)
 
 # 모델 학습
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -122,7 +130,7 @@ model.load_state_dict(torch.load(model_save_path))
 model.eval()
 correct = 0
 total = 0
-avg_cm = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+avg_cm = [[0, 0], [0, 0]]
 
 with torch.no_grad():
     for images, labels in test_loader:
@@ -133,24 +141,13 @@ with torch.no_grad():
         correct += (predicted == labels).sum().item()
 
         # 혼동 행렬 계산
-        for i in range(len(labels)):
+        for i in range(num_class):
             avg_cm[labels[i]][predicted[i]] += 1
 
     print(f'Accuracy on test set: {100 * correct / total}%')
 
-    # 클래스별 성능 계산
-    s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
-    s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
-    s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-    
-    S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
-                      (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
-                      +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
-                      +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
+    # 클래스별 성능 계산    
+    S_e=avg_cm[1][1]/(avg_cm[1][0]+avg_cm[1][1])
+    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1])
     S_c=(S_p+S_e)/2
-
-    print(f'Crackle Accuracy: {s_crackle:.2%}')
-    print(f'Wheeze Accuracy: {s_wheezle:.2%}')
-    print(f'Both Accuracy: {s_both:.2%}')
     print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))

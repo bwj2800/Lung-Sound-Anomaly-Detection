@@ -4,14 +4,27 @@ from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from PIL import Image
+import sys
+import numpy as np
+import random
+sys.path.append(os.path.abspath('./'))
 from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
-image_dir = 'data_4gr/mel_image_cnn_lstm'
+image_dir = './data_4gr/mel_image_cnn_lstm'
 model_save_path = './checkpoint/cnn_lstm_1.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+
+seed = 42  # 원하는 시드 값으로 설정
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 # Custom Dataset class definition
 class CustomDataset(Dataset):
@@ -48,9 +61,6 @@ dataset = CustomDataset(image_dir=image_dir, transform=transform)
 print("Dataset ready")
 
 # 데이터셋 분할
-seed = 42  # 원하는 시드 값으로 설정
-torch.manual_seed(seed)
-
 train_size = int(0.6 * len(dataset))
 val_size = int(0.2 * len(dataset))
 test_size = len(dataset) - train_size - val_size
@@ -63,10 +73,11 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers
 print("Dataset split")
 
 # 모델 초기화
-model = CNN_LSTM()
+num_class = 4
+model = CNN_LSTM(num_class=num_class)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.load_state_dict(torch.load(model_save_path))
+model.load_state_dict(torch.load(model_save_path, weights_only=True))
 model=model.to(device)
 model.eval()
 correct = 0
@@ -83,7 +94,7 @@ with torch.no_grad():
         correct += (predicted == labels).sum().item()
 
         # 혼동 행렬 계산
-        for i in range(len(labels)):
+        for i in range(num_class):
             avg_cm[labels[i]][predicted[i]] += 1
 
     print(f'Accuracy on test set: {100 * correct / total}%')
