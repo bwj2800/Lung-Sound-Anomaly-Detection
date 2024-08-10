@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class CNN_LSTM(nn.Module):
-    def __init__(self):
+    def __init__(self, num_class):
         super(CNN_LSTM, self).__init__()
         
         # First CNN Layer
@@ -26,7 +26,7 @@ class CNN_LSTM(nn.Module):
         
         # Fully Connected Layers
         self.fc1 = nn.Linear(64*288, 128)
-        self.fc2 = nn.Linear(128, 4)
+        self.fc2 = nn.Linear(128, num_class)
     
     def forward(self, x):
         # First CNN Layer

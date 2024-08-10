@@ -1,7 +1,5 @@
 import os
 import torch
-import torch.nn as nn
-import numpy as np
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, classification_report
 import seaborn as sns
 from torch.utils.data import Dataset, DataLoader, random_split
