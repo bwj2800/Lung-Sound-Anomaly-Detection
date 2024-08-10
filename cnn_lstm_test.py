@@ -1,7 +1,5 @@
 import os
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -42,9 +40,7 @@ class CustomDataset(Dataset):
 
 # Data preprocessing
 transform = transforms.Compose([
-    # transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
 # Create the dataset
@@ -67,65 +63,19 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers
 print("Dataset split")
 
 # 모델 초기화
-num_classes = len(label_map)
 model = CNN_LSTM()
 
-# 모델 학습
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-num_epochs = 100
-best_loss = float('inf')
-best_accuracy = 0.0
-best_model = None
-
-print("Start training")
-
-for epoch in range(num_epochs):
-    model.train()
-    running_loss = 0.0
-    for i, (images, labels) in enumerate(train_loader):
-        images, labels = images.to(device), labels.to(device)
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
-
-    correct = 0
-    total = 0
-    model.eval()
-    with torch.no_grad():
-        for images, labels in val_loader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-    accuracy = 100 * correct / total
-    print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {running_loss / len(train_loader)}, Val Accuracy: {accuracy}%')
-
-    # 모델 저장
-    if accuracy > best_accuracy:
-        best_accuracy = accuracy
-        best_model = model.state_dict()
-        torch.save(best_model, model_save_path)
-        print("Model saved")
-
-
-model.load_state_dict(best_model)
 model.load_state_dict(torch.load(model_save_path))
+model=model.to(device)
 model.eval()
 correct = 0
 total = 0
 avg_cm = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
 
+
 with torch.no_grad():
-    for images, labels in test_loader:
+    for images, labels in tqdm(test_loader):
         images, labels = images.to(device), labels.to(device)
         outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
