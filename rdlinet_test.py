@@ -8,6 +8,8 @@ from torchvision import transforms
 from tqdm import tqdm
 from PIL import Image
 from model.rdlinet import RDLINet  # RDLINet 모델 임포트
+import random
+import numpy as np
 
 # 데이터셋 경로
 image_dir = 'data_4gr/mel_image'
@@ -16,6 +18,17 @@ model_save_path = './checkpoint/rdlinet_100_melonly.pth'
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
 label_names = list(label_map.keys())
+
+# 시드 고정
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 # Custom Dataset class definition (기존 코드 사용)
 class CustomDataset(Dataset):
@@ -54,7 +67,7 @@ def test():
     dataset = CustomDataset(image_dir=image_dir, transform=transform)
     # 데이터셋 분할
     seed = 42  # 원하는 시드 값으로 설정
-    torch.manual_seed(seed)
+    set_seed(seed)
     train_size = int(0.6 * len(dataset))
     val_size = int(0.2 * len(dataset))
     test_size = len(dataset) - train_size - val_size
