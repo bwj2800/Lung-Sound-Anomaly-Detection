@@ -9,6 +9,7 @@ from tqdm import tqdm
 from PIL import Image
 from model.rdlinet import RDLINet  # RDLINet 모델 임포트
 import random
+import numpy as np
 
 # 데이터셋 경로
 image_dir = 'data_4gr/mel_image'

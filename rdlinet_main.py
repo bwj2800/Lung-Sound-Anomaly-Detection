@@ -56,7 +56,7 @@ class CustomDataset(Dataset):
         return image, label
 
 def train_and_evaluate():
-
+    final_epoch = 0
     # Data preprocessing
     transform = transforms.Compose([
         transforms.Resize((64,38)),
@@ -166,6 +166,7 @@ def train_and_evaluate():
             best_model = model.state_dict()
             torch.save(best_model, model_save_path)
             print(f"{epoch+1} Model saved")
+            final_epoch = epoch+1
 
     # 최적의 모델 로드
     model.load_state_dict(best_model)
@@ -205,6 +206,7 @@ def train_and_evaluate():
     print(f'Wheeze Accuracy: {s_wheezle:.2%}')
     print(f'Both Accuracy: {s_both:.2%}')
     print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
+    print(f'Best Val Accuracy recorded at {epoch+1}!')
 
     # 학습 결과 시각화 및 저장
     epochs = range(1, num_epochs + 1)

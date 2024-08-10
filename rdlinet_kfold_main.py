@@ -11,6 +11,7 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 from model.rdlinet import RDLINet  # Import the RDLINet model
+import random
 
 # 데이터셋 경로
 image_dir = 'data_4gr/mel_image'
@@ -18,6 +19,17 @@ model_save_path = './checkpoint/rdlinet_100_melonly.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+
+# 시드 고정
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 # Custom Dataset class definition
 class CustomDataset(Dataset):
@@ -57,8 +69,12 @@ def train_and_evaluate():
     dataset = CustomDataset(image_dir=image_dir, transform=transform)
     print("Dataset ready")
 
+    # 데이터셋 분할
+    seed = 42  # 원하는 시드 값으로 설정
+    set_seed(seed)
+
     # Stratified K-Fold 설정
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
 
     X = np.arange(len(dataset))
     y = np.array(dataset.labels)
@@ -207,7 +223,7 @@ def train_and_evaluate():
         print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
 
     # 전체 Fold에 대한 성능 평균 출력
-    
+
     # Fold별 평균 성능 계산
     fold_metrics = np.array(fold_metrics)
     mean_metrics = np.mean(fold_metrics, axis=0)
