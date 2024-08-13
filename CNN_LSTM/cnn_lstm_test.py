@@ -7,6 +7,8 @@ from PIL import Image
 import sys
 import numpy as np
 import random
+import time
+from thop import profile
 sys.path.append(os.path.abspath('./'))
 from model.cnn_lstm import CNN_LSTM
 
@@ -58,7 +60,6 @@ transform = transforms.Compose([
 
 # Create the dataset
 dataset = CustomDataset(image_dir=image_dir, transform=transform)
-print("Dataset ready")
 
 # 데이터셋 분할
 train_size = int(0.6 * len(dataset))
@@ -70,7 +71,6 @@ train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
 val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=4)
-print("Dataset split")
 
 # 모델 초기화
 num_class = 4
@@ -85,7 +85,51 @@ total = 0
 avg_cm = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
 
 
+# Count trainable parameters
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+num_params = count_parameters(model)
+print(f'Trainable Parameters: {num_params / 1e6:.2f} M')
+
+# Calculate MACs and FLOPs
+input = torch.randn(1, 3, 251, 40).to(device)
+macs, params = profile(model, inputs=(input,))
+print(f'MACs per single image: {macs / 1e9:.2f} G')
+print(f'FLOPs per single image: {macs * 2 / 1e9:.2f} G')
+
+# Estimate memory usage
+def get_model_memory(model, input_size):
+    input = torch.randn(1, *input_size).to(device)
+    model = model.to(device)
+    
+    def hook_fn(module, input, output):
+        if isinstance(output, tuple):
+            output = output[0]  # Take the first element if the output is a tuple
+        module.memory = output.nelement() * output.element_size()
+    
+    hooks = []
+    for layer in model.modules():
+        if len(list(layer.children())) == 0:
+            hooks.append(layer.register_forward_hook(hook_fn))
+    
+    with torch.no_grad():
+        _ = model(input)
+    
+    total_memory = sum([layer.memory for layer in model.modules() if hasattr(layer, 'memory')])
+    
+    for hook in hooks:
+        hook.remove()
+
+    return total_memory
+
+input_size = (3, 251, 40)
+memory_usage = get_model_memory(model, input_size)
+print(f'Model Memory Usage: {memory_usage / 1024**3:.2f} G  ({memory_usage / 1024**2:.2f} MB)')
+
 with torch.no_grad():
+    
+    start_time = time.time()
     for images, labels in tqdm(test_loader):
         images, labels = images.to(device), labels.to(device)
         outputs = model(images)
@@ -96,6 +140,11 @@ with torch.no_grad():
         # 혼동 행렬 계산
         for i in range(num_class):
             avg_cm[labels[i]][predicted[i]] += 1
+            
+    
+    end_time = time.time()
+    avg_time = (end_time - start_time) / len(test_loader)
+    print(f'Total Inference Time: {(end_time-start_time)* 1000:.2f} ms   Average Inference Time per Image: {avg_time*1000:.2f} ms')
 
     print(f'Accuracy on test set: {100 * correct / total}%')
 
