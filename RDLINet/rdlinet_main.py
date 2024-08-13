@@ -8,13 +8,20 @@ from tqdm import tqdm
 from PIL import Image
 import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
-from model.rdlinet import RDLINet  # Import the RDLINet model
+# 현재 파일의 경로를 기준으로 model 폴더의 절대 경로를 sys.path에 추가
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+
+from rdlinet import RDLINet  # Import the RDLINet model
+# from ..model.rdlinet import RDLINet  # Import the RDLINet model
 import random
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 # 데이터셋 경로
-image_dir = 'data_4gr/mel_image'
-model_save_path = './checkpoint/rdlinet_100_melonly.pth'
+# image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+image_dir = './data_4gr/mel_image_old'
+model_save_path = './checkpoint/rdlinet.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -59,7 +66,7 @@ def train_and_evaluate():
     final_epoch = 0
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((64,38)),
+        transforms.Resize((64,64)),
         transforms.ToTensor(),
         # transforms.Normalize((0.3416, 0.1199, 0.3481]), (0.2769, 0.1272, 0.1512))
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -73,16 +80,48 @@ def train_and_evaluate():
     seed = 42  # 원하는 시드 값으로 설정
     set_seed(seed)
     # torch.manual_seed(seed)
-    train_size = int(0.6 * len(dataset))
-    val_size = int(0.2 * len(dataset))
-    test_size = len(dataset) - train_size - val_size
-    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
+    
+
+    # 이미지 경로와 라벨 리스트를 가져옵니다.
+    image_paths = dataset.image_paths
+    labels = dataset.labels
+
+    # 전체 데이터셋을 60:40 비율로 train과 test로 나눕니다.
+    train_paths, test_paths, train_labels, test_labels = train_test_split(image_paths, labels, test_size=0.4, random_state=seed, stratify=labels)
+
+    # train 데이터셋의 10%를 validation 데이터로 나눕니다.
+    train_paths, val_paths, train_labels, val_labels = train_test_split(train_paths, train_labels, test_size=0.1, random_state=seed, stratify=train_labels)
+
+    # 각 서브셋에 대해 CustomDataset을 만듭니다.
+    train_dataset = CustomDataset(image_dir=image_dir, transform=transform)
+    val_dataset = CustomDataset(image_dir=image_dir, transform=transform)
+    test_dataset = CustomDataset(image_dir=image_dir, transform=transform)
+
+    # 필요한 경우 각 데이터셋의 이미지 경로와 라벨을 설정해줍니다.
+    train_dataset.image_paths, train_dataset.labels = train_paths, train_labels
+    val_dataset.image_paths, val_dataset.labels = val_paths, val_labels
+    test_dataset.image_paths, test_dataset.labels = test_paths, test_labels
 
     # 데이터 로더 생성
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=4)
-    print("Dataset split")
+    
+    # 데이터셋 분할 후, 각 데이터셋의 크기 출력
+    print(f"Training dataset size: {len(train_dataset)}")
+    print(f"Validation dataset size: {len(val_dataset)}")
+    print(f"Test dataset size: {len(test_dataset)}")
+
+    # train_size = int(0.6 * len(dataset))
+    # val_size = int(0.2 * len(dataset))
+    # test_size = len(dataset) - train_size - val_size
+    # train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
+
+    # # 데이터 로더 생성
+    # train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+    # val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
+    # test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=4)
+    # print("Dataset split")
 
     # 모델 초기화
     num_classes = len(label_map)

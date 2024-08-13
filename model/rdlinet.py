@@ -78,6 +78,6 @@ if __name__ == "__main__":
     print(model)
 
     # 임의의 입력 데이터로 테스트
-    input_data = torch.randn(1, 3, 64, 38)
+    input_data = torch.randn(1, 3, 64, 64)
     output = model(input_data)
     print(output.shape)
