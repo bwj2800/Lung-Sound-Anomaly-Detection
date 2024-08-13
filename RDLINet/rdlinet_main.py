@@ -8,14 +8,20 @@ from tqdm import tqdm
 from PIL import Image
 import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
-from model.rdlinet import RDLINet  # Import the RDLINet model
+# 현재 파일의 경로를 기준으로 model 폴더의 절대 경로를 sys.path에 추가
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+
+from rdlinet import RDLINet  # Import the RDLINet model
+# from ..model.rdlinet import RDLINet  # Import the RDLINet model
 import random
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 # 데이터셋 경로
-image_dir = 'data_4gr/mel_image'
-model_save_path = './checkpoint/rdlinet_100_melonly_.pth'
+# image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+image_dir = './data_4gr/mel_image_old'
+model_save_path = './checkpoint/rdlinet.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -125,7 +131,7 @@ def train_and_evaluate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-5)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     num_epochs = 100
     best_accuracy = 0.0
