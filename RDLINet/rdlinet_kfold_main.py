@@ -10,12 +10,17 @@ from tqdm import tqdm
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from model.rdlinet import RDLINet  # Import the RDLINet model
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+
+from rdlinet import RDLINet  # Import the RDLINet model
+# from model.rdlinet import RDLINet  # Import the RDLINet model
 import random
 
 # 데이터셋 경로
-image_dir = 'data_4gr/mel_image'
-model_save_path = './checkpoint/rdlinet_100_melonly_kfold.pth'
+# image_dir = 'data_4gr/mel_image'
+image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+model_save_path = './checkpoint/rdlinet_kfold.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -60,7 +65,7 @@ def train_and_evaluate():
 
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((64,38)),
+        transforms.Resize((64,64)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
