@@ -12,6 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from PIL import Image
+import random
 
 # 데이터셋 경로
 image_dir = 'data_4gr/mel_image'
@@ -19,6 +20,15 @@ source_dir = './mat_462/'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+
+seed = 42  # 원하는 시드 값으로 설정
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 # 추가 feature 읽기 및 전처리 함수
 def load_and_preprocess_features():
