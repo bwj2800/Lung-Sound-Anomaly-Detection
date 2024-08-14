@@ -18,9 +18,13 @@ import random
 import numpy as np
 from sklearn.model_selection import train_test_split
 
+import time
+from thop import profile
+from torchsummary import summary
+
 # 데이터셋 경로
-# image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
-image_dir = './data_4gr/mel_image_old'
+image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+# image_dir = './data_4gr/mel_image_old'
 model_save_path = './checkpoint/rdlinet.pth'
 
 # 라벨 매핑
@@ -131,7 +135,7 @@ def train_and_evaluate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001) #0.001
 
     num_epochs = 100
     best_accuracy = 0.0
