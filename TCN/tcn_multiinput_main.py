@@ -6,14 +6,18 @@ from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from PIL import Image
-from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from model.multi_input_tcn import MultilevelTCNModel
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
+
+from multi_input_to_backbone_tcn_ import MultilevelTCNModel
 
 # 데이터셋 경로
 mel_dir = 'data_4gr/mel_image'
+# mel_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
 chroma_dir = 'data_4gr/chroma_image'
 mfcc_dir = 'data_4gr/mfcc_image'
 model_save_path = './checkpoint/tcn_vgg19_pt_ml.pth'
@@ -59,11 +63,12 @@ class CustomDataset(Dataset):
         return mel_image, chroma_image, mfcc_image, label
 
 def train_and_evaluate():
+    final_epoch = 0
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((64, 64)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
 
     # Create the dataset
@@ -90,21 +95,27 @@ def train_and_evaluate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=1e-5)
 
     num_epochs = 100
     best_loss = float('inf')
     best_accuracy = 0.0
     best_model = None
 
-    train_losses = []
-    val_accuracies = []
+    # 학습 기록 저장
+    train_loss_history = []
+    val_loss_history = []
+    train_acc_history = []
+    val_acc_history = []
 
     print("Start training")
 
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
+        all_preds = []
+        all_labels = []
+
         for i, (mel_images, chroma_images, mfcc_images, labels) in enumerate(tqdm(train_loader, desc=f"Training Epoch {epoch+1}/{num_epochs}")):
             mel_images, chroma_images, mfcc_images, labels = mel_images.to(device), chroma_images.to(device), mfcc_images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -113,26 +124,37 @@ def train_and_evaluate():
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
 
-        train_losses.append(running_loss / len(train_loader))
+        epoch_acc = 100 * correct / total
+        train_loss_history.append(running_loss / len(train_loader))
+        train_acc_history.append(epoch_acc)
 
-        correct = 0
-        total = 0
-        all_labels = []
-        all_predictions = []
+        val_correct = 0
+        val_total = 0
+        val_running_loss = 0.0
+        val_all_labels = []
+        val_all_predictions = []
         model.eval()
         with torch.no_grad():
             for mel_images, chroma_images, mfcc_images, labels in tqdm(val_loader, desc="Validating"):
                 mel_images, chroma_images, mfcc_images, labels = mel_images.to(device), chroma_images.to(device), mfcc_images.to(device), labels.to(device)
                 outputs = model(mel_images, chroma_images, mfcc_images)
                 _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-                all_labels.extend(labels.cpu().numpy())
-                all_predictions.extend(predicted.cpu().numpy())
+                val_total += labels.size(0)
+                val_correct += (predicted == labels).sum().item()
+                val_all_labels.extend(labels.cpu().numpy())
+                val_all_predictions.extend(predicted.cpu().numpy())
 
-        accuracy = 100 * correct / total
-        val_accuracies.append(accuracy)
+        
+        accuracy = 100 * val_correct / val_total
+        val_acc_history.append(accuracy)
+        val_acc_history.append(val_running_loss / len(val_loader))
+
         precision = precision_score(all_labels, all_predictions, average='weighted')
         recall = recall_score(all_labels, all_predictions, average='weighted')
         f1 = f1_score(all_labels, all_predictions, average='weighted')
@@ -146,26 +168,31 @@ def train_and_evaluate():
             best_model = model.state_dict()
             torch.save(best_model, model_save_path)
             print(f"Model saved, best at {epoch+1}")
+            final_epoch = epoch+1
 
-    # Loss 시각화
-    plt.figure(figsize=(10, 5))
-    plt.plot(train_losses, label='Train Loss')
-    plt.xlabel('Epoch')
+    # 학습 결과 시각화 및 저장
+    epochs = range(1, num_epochs + 1)
+    plt.figure(figsize=(12, 8))
+
+    plt.subplot(2, 1, 1)
+    plt.plot(epochs, train_loss_history, label='Train Loss')
+    plt.plot(epochs, val_loss_history, label='Val Loss')
+    plt.xlabel('Epochs')
     plt.ylabel('Loss')
-    plt.title('Training Loss')
+    plt.title('Training and Validation Loss')
     plt.legend()
-    plt.savefig('train_loss.png')
-    # plt.show()
 
-    # Accuracy 시각화
-    plt.figure(figsize=(10, 5))
-    plt.plot(val_accuracies, label='Validation Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy (%)')
-    plt.title('Validation Accuracy')
+    plt.subplot(2, 1, 2)
+    plt.plot(epochs, train_acc_history, label='Train Accuracy')
+    plt.plot(epochs, val_acc_history, label='Val Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.title('Training and Validation Accuracy')
     plt.legend()
-    plt.savefig('val_accuracy.png')
-    # plt.show()
+
+    plt.tight_layout()
+    plt.savefig('training_results_tcn.png')
+    plt.show()
 
     model.load_state_dict(best_model)
     model.eval()
@@ -189,39 +216,40 @@ def train_and_evaluate():
             for i in range(len(labels)):
                 avg_cm[labels[i]][predicted[i]] += 1
 
-        accuracy = 100 * correct / total
-        precision = precision_score(all_labels, all_predictions, average='weighted')
-        recall = recall_score(all_labels, all_predictions, average='weighted')
-        f1 = f1_score(all_labels, all_predictions, average='weighted')
+    accuracy = 100 * correct / total
+    precision = precision_score(all_labels, all_predictions, average='weighted')
+    recall = recall_score(all_labels, all_predictions, average='weighted')
+    f1 = f1_score(all_labels, all_predictions, average='weighted')
 
-        print(f'Accuracy on test set: {accuracy}%')
-        print(f'Precision: {precision}, Recall: {recall}, F1 Score: {f1}')
+    print(f'Accuracy on test set: {accuracy}%')
+    print(f'Precision: {precision}, Recall: {recall}, F1 Score: {f1}')
 
-        # Confusion Matrix 시각화
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(avg_cm, annot=True, fmt='d', cmap='Blues', xticklabels=label_map.keys(), yticklabels=label_map.keys())
-        plt.xlabel('Predicted')
-        plt.ylabel('Actual')
-        plt.title('Confusion Matrix')
-        plt.savefig('confusion_matrix.png')
-        # plt.show()
+    # # Confusion Matrix 시각화
+    # plt.figure(figsize=(10, 8))
+    # sns.heatmap(avg_cm, annot=True, fmt='d', cmap='Blues', xticklabels=label_map.keys(), yticklabels=label_map.keys())
+    # plt.xlabel('Predicted')
+    # plt.ylabel('Actual')
+    # plt.title('Confusion Matrix')
+    # plt.savefig('confusion_matrix.png')
+    # plt.show()
 
-        # 클래스별 성능 계산
-        s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
-        s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
-        s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-        
-        S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
-                        (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
-                        +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
-                        +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-        S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
-        S_c=(S_p+S_e)/2
+    # 클래스별 성능 계산
+    s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
+    s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
+    s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    
+    S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
+                    (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
+                    +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
+                    +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
+    S_c=(S_p+S_e)/2
 
-        print(f'Crackle Accuracy: {s_crackle:.2%}')
-        print(f'Wheeze Accuracy: {s_wheezle:.2%}')
-        print(f'Both Accuracy: {s_both:.2%}')
-        print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
+    print(f'Crackle Accuracy: {s_crackle:.2%}')
+    print(f'Wheeze Accuracy: {s_wheezle:.2%}')
+    print(f'Both Accuracy: {s_both:.2%}')
+    print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
+    print(f'Best Val Accuracy recorded at {final_epoch}!')
 
 if __name__ == '__main__':
     train_and_evaluate()

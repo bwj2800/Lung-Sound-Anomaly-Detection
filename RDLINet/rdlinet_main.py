@@ -18,10 +18,6 @@ import random
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-import time
-from thop import profile
-from torchsummary import summary
-
 # 데이터셋 경로
 image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
 # image_dir = './data_4gr/mel_image_old'
@@ -249,7 +245,7 @@ def train_and_evaluate():
     print(f'Wheeze Accuracy: {s_wheezle:.2%}')
     print(f'Both Accuracy: {s_both:.2%}')
     print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
-    print(f'Best Val Accuracy recorded at {epoch+1}!')
+    print(f'Best Val Accuracy recorded at {final_epoch}!')
 
     # 학습 결과 시각화 및 저장
     epochs = range(1, num_epochs + 1)
