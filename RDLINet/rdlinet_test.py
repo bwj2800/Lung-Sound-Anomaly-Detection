@@ -10,6 +10,7 @@ from PIL import Image
 from model.rdlinet import RDLINet  # RDLINet 모델 임포트
 import random
 import numpy as np
+from rdlinet_main import CustomDataset
 
 # 데이터셋 경로
 image_dir = 'data_4gr/mel_image'
@@ -30,35 +31,11 @@ def set_seed(seed):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-# Custom Dataset class definition (기존 코드 사용)
-class CustomDataset(Dataset):
-    def __init__(self, image_dir, transform=None):
-        self.image_dir = image_dir
-        self.transform = transform
-        self.image_paths = []
-        self.labels = []
-        for label_name, label_idx in label_map.items():
-            image_folder = os.path.join(image_dir, label_name)
-            for img_file in os.listdir(image_folder):
-                if img_file.endswith(('.png', '.jpg', '.jpeg')):  # Include only image files
-                    self.image_paths.append(os.path.join(image_folder, img_file))
-                    self.labels.append(label_idx)
-
-    def __len__(self):
-        return len(self.image_paths)
-
-    def __getitem__(self, index):
-        image_path = self.image_paths[index]
-        label = self.labels[index]
-        image = Image.open(image_path).convert('RGB')
-        if self.transform:
-            image = self.transform(image)
-        return image, label
 
 def test():
     # Data preprocessing (기존 코드 사용)
     transform = transforms.Compose([
-        transforms.Resize((64, 38)),
+        transforms.Resize((64, 64)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
