@@ -22,10 +22,12 @@ class CNN_LSTM(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         
         # LSTM Layer
-        self.lstm = nn.LSTM(input_size=29, hidden_size=64, num_layers=1, batch_first=True)
+        # self.lstm = nn.LSTM(input_size=29, hidden_size=64, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_size=6, hidden_size=64, num_layers=1, batch_first=True)
         
         # Fully Connected Layers
-        self.fc1 = nn.Linear(64*288, 128)
+        # self.fc1 = nn.Linear(64*288, 128)
+        self.fc1 = nn.Linear(64*576, 128)
         self.fc2 = nn.Linear(128, num_class)
     
     def forward(self, x):
@@ -47,7 +49,8 @@ class CNN_LSTM(nn.Module):
         x = self.bn3(x)
         x = self.pool(x)
         # Reshape for LSTM
-        x = x.reshape(x.size(0), 96 * 3, 29)
+        # x = x.reshape(x.size(0), 96 * 3, 29)
+        x = x.reshape(x.size(0), 96 * 6, 6)
         
         # LSTM Layer
         x, _ = self.lstm(x)
