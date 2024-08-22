@@ -1,3 +1,4 @@
+
 import os
 import torch
 import torch.nn as nn
@@ -5,21 +6,23 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader, Subset
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
-import sys
 import random
+import sys
 sys.path.append(os.path.abspath('./'))
 from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
-image_dir = 'data_4gr/mel_image_cnn_lstm_2class'
-model_save_path = './checkpoint/cnn_lstm_5fold_2class.pth'
+# image_dir = 'data_4gr/mel_image_cnn_lstm_2class'
+image_dir = './data_4gr/0822/Task1_1'
+model_save_dir = './checkpoint/'
 
 # 라벨 매핑
-label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
+# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
+label_map = {'normal': 0, 'abnormal': 1}
 
 # 시드 고정
 def set_seed(seed):
@@ -42,7 +45,7 @@ class CustomDataset(Dataset):
         for label_name, label_idx in label_map.items():
             image_folder = os.path.join(image_dir, label_name)
             for img_file in os.listdir(image_folder):
-                if img_file.endswith(('.png', '.jpg', '.jpeg')):  # Include only image files
+                if img_file.endswith(('.png', '.jpg', '.jpeg')):
                     self.image_paths.append(os.path.join(image_folder, img_file))
                     self.labels.append(label_idx)
 
@@ -61,6 +64,7 @@ def train_and_evaluate():
 
     # Data preprocessing
     transform = transforms.Compose([
+        transforms.Resize((64, 64)),
         transforms.ToTensor(),
     ])
 
@@ -69,52 +73,39 @@ def train_and_evaluate():
     print("Dataset ready")
 
     # 데이터셋 분할
-    seed = 42  # 원하는 시드 값으로 설정
+    seed = 42
     set_seed(seed)
 
-    # Stratified K-Fold 설정
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
 
     X = np.arange(len(dataset))
     y = np.array(dataset.labels)
-    # acc, s_crackle, s_wheezle, s_both, S_e, S_p, S_c, f1score
     fold_metrics = []
-    
+
     for fold, (train_index, test_index) in enumerate(skf.split(X, y)):
         print(f"\nFold {fold+1}/{skf.n_splits}")
 
-        # Subset을 사용하여 train, val, test 데이터셋을 만듭니다.
+        # Train and test split
         train_dataset = Subset(dataset, train_index)
         test_dataset = Subset(dataset, test_index)
 
-        # 다시 Stratified K-Fold로 train과 val로 나눕니다.
-        val_split = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        train_idx, val_idx = next(val_split.split(train_index, y[train_index]))
-
-        val_dataset = Subset(dataset, val_idx)
-        train_dataset = Subset(dataset, train_idx)
-
-        # 데이터 로더 생성
+        # Data loaders
         train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
-        val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
         test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=4)
         print("Dataset split")
 
-        # 모델 초기화
+        # Model initialization
         num_class = 2
         model = CNN_LSTM(num_class=num_class)
-
-        # 모델 학습
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        optimizer = optim.Adam(model.parameters(), lr=1e-5)
 
         num_epochs = 100
         best_accuracy = 0.0
         best_model = None
 
-        # 학습 기록 저장
         train_loss_history = []
         val_loss_history = []
         train_acc_history = []
@@ -148,14 +139,14 @@ def train_and_evaluate():
 
             print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {epoch_loss:.4f}, Train Acc: {epoch_acc:.4f}")
 
-            # 검증 루프
+            # Validation loop
             model.eval()
             val_running_loss = 0.0
             val_all_preds = []
             val_all_labels = []
 
             with torch.no_grad():
-                for images, labels in val_loader:
+                for images, labels in test_loader:
                     images, labels = images.to(device), labels.to(device)
                     outputs = model(images)
                     loss = criterion(outputs, labels)
@@ -164,7 +155,7 @@ def train_and_evaluate():
                     val_all_preds.extend(preds.cpu().numpy())
                     val_all_labels.extend(labels.cpu().numpy())
 
-            val_epoch_loss = val_running_loss / len(val_loader)
+            val_epoch_loss = val_running_loss / len(test_loader)
             val_epoch_acc = accuracy_score(val_all_labels, val_all_preds)
 
             val_loss_history.append(val_epoch_loss)
@@ -172,19 +163,19 @@ def train_and_evaluate():
 
             print(f"Epoch [{epoch+1}/{num_epochs}], Val Loss: {val_epoch_loss:.4f}, Val Acc: {val_epoch_acc:.4f}")
 
-            # 모델 저장
+            # Save the model if it is the best so far
             if val_epoch_acc > best_accuracy:
                 best_accuracy = val_epoch_acc
                 best_model = model.state_dict()
-                torch.save(best_model, model_save_path)
-                print(f"{epoch+1} Model saved")
+                torch.save(best_model, os.path.join(model_save_dir, f'cnn_lstm_fold_{fold+1}_2class_0822.pth'))
+                print(f"Best model saved for fold {fold+1}")
 
-        # 최적의 모델 로드
+        # Load the best model for the fold
         model.load_state_dict(best_model)
         model.eval()
         correct = 0
         total = 0
-        avg_cm = [[0, 0], [0, 0]]
+        avg_cm = np.zeros((2, 2), dtype=int)  # Reset confusion matrix for each fold to 2x2
 
         with torch.no_grad():
             for images, labels in test_loader:
@@ -194,31 +185,28 @@ def train_and_evaluate():
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
-                # 혼동 행렬 계산
-                for i in range(len(labels)):
-                    avg_cm[labels[i]][predicted[i]] += 1
-        # Fold 마다 지표 계산
+                # Compute confusion matrix for binary classification (2 classes)
+                cm = confusion_matrix(labels.cpu().numpy(), predicted.cpu().numpy(), labels=[0, 1])
+                avg_cm += cm
+
+        # Fold metrics calculation
         accuracy = 100 * correct / total
-        
-        S_e=avg_cm[1][1]/(avg_cm[1][0] + avg_cm[1][1])
-        S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1])
-        S_c=(S_p+S_e)/2
+        S_e = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1])
+        S_p = avg_cm[0][0] / (avg_cm[0][0] + avg_cm[0][1])
+        S_c = (S_p + S_e) / 2
 
         fold_metrics.append([accuracy, S_e, S_p, S_c])
         print(f'Accuracy on test set for fold {fold+1}: {accuracy:.2f}%')
-        print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
-
-    # 전체 Fold에 대한 성능 평균 출력
-
-    # Fold별 평균 성능 계산
+        print(f"S_p: {S_p:.4f}, S_e: {S_e:.4f}, Score: {S_c:.4}")
+        
+    # Average metrics across all folds
     fold_metrics = np.array(fold_metrics)
     mean_metrics = np.mean(fold_metrics, axis=0)
 
-    # avg_accuracy = np.mean(fold_metrics)
     print(f'\nAverage Accuracy across all folds: {mean_metrics[0]:.2f}%')
     print(f"Average Sensitivity (S_e): {mean_metrics[1]:.4f}")
     print(f"Average Specificity (S_p): {mean_metrics[2]:.4f}")
     print(f"Average Score (S_c): {mean_metrics[3]:.4f}")
-
+    
 if __name__ == '__main__':
     train_and_evaluate()
