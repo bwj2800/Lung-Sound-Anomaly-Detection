@@ -8,13 +8,16 @@ from PIL import Image
 import sys
 import numpy as np
 import random
+from sklearn.model_selection import train_test_split
 
 sys.path.append(os.path.abspath('./'))
 from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
-image_dir = './data_4gr/mel_image_cnn_lstm'
-model_save_path = './checkpoint/cnn_lstm.pth'
+# image_dir = './data_4gr/mel_image_cnn_lstm'
+# model_save_path = './checkpoint/cnn_lstm.pth'
+image_dir = './data_4gr/0822/Task1_2'
+model_save_path = './checkpoint/cnn_lstm_0822.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -55,6 +58,7 @@ class CustomDataset(Dataset):
 
 # Data preprocessing
 transform = transforms.Compose([
+    transforms.Resize((64, 64)),
     transforms.ToTensor(),
 ])
 
@@ -62,17 +66,36 @@ transform = transforms.Compose([
 dataset = CustomDataset(image_dir=image_dir, transform=transform)
 print("Dataset ready")
 
-# 데이터셋 분할
-train_size = int(0.6 * len(dataset))
-val_size = int(0.2 * len(dataset))
-test_size = len(dataset) - train_size - val_size
-train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, val_size, test_size])
+# 이미지 경로와 라벨 리스트를 가져옵니다.
+image_paths = dataset.image_paths
+labels = dataset.labels
+
+# 전체 데이터셋을 60:40 비율로 train과 test로 나눕니다.
+train_paths, test_paths, train_labels, test_labels = train_test_split(image_paths, labels, test_size=0.4, random_state=seed, stratify=labels)
+
+# train 데이터셋의 10%를 validation 데이터로 나눕니다.
+train_paths, val_paths, train_labels, val_labels = train_test_split(train_paths, train_labels, test_size=0.1, random_state=seed, stratify=train_labels)
+
+# 각 서브셋에 대해 CustomDataset을 만듭니다.
+train_dataset = CustomDataset(image_dir=image_dir, transform=transform)
+val_dataset = CustomDataset(image_dir=image_dir, transform=transform)
+test_dataset = CustomDataset(image_dir=image_dir, transform=transform)
+
+# 필요한 경우 각 데이터셋의 이미지 경로와 라벨을 설정해줍니다.
+train_dataset.image_paths, train_dataset.labels = train_paths, train_labels
+val_dataset.image_paths, val_dataset.labels = val_paths, val_labels
+test_dataset.image_paths, test_dataset.labels = test_paths, test_labels
 
 # 데이터 로더 생성
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
 val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=4)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=4)
-print("Dataset split")
+
+# 데이터셋 분할 후, 각 데이터셋의 크기 출력
+print(f"Training dataset size: {len(train_dataset)}")
+print(f"Validation dataset size: {len(val_dataset)}")
+print(f"Test dataset size: {len(test_dataset)}")
+
 
 # 모델 초기화
 num_class = 4
@@ -82,7 +105,7 @@ model = CNN_LSTM(num_class=num_class)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
 
 num_epochs = 100
 best_loss = float('inf')

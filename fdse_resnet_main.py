@@ -182,7 +182,7 @@ for epoch in range(num_epochs):
     if accuracy > best_accuracy:
         best_accuracy = accuracy
         best_model = model.state_dict()
-        torch.save(best_model, 'best_resnet_fdse_1.pth')
+        torch.save(best_model, 'checkpoint/best_resnet_fdse_1.pth')
         print("Model saved")
 
 model.load_state_dict(best_model)
