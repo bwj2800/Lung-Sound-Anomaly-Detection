@@ -20,11 +20,13 @@ from sklearn.model_selection import train_test_split
 
 # 데이터셋 경로
 # image_dir = 'data_4gr/mel_image'
-image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
-model_save_path = './checkpoint/rdlinet_kfold.pth'
+image_dir = './Aug/Task1_1'
+# image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+model_save_path = './checkpoint/rdlinet_binary_kfold_augmented.pth'
 
 # 라벨 매핑
-label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
+# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
+label_map = {'normal': 0, 'abnormal': 1}
 
 # 시드 고정
 def set_seed(seed):

@@ -19,9 +19,10 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 # 데이터셋 경로
-image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+image_dir = './Aug/Task1_2'
+# image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
 # image_dir = './data_4gr/mel_image_old'
-model_save_path = './checkpoint/rdlinet.pth'
+model_save_path = './checkpoint/rdlinet_augmented.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}

@@ -10,6 +10,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+from sklearn.model_selection import train_test_split
+import random
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
 
@@ -24,6 +26,17 @@ model_save_path = './checkpoint/tcn_vgg19_pt_ml.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+
+# 시드 고정
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 # Custom Dataset class 정의
 class CustomDataset(Dataset):
@@ -76,17 +89,50 @@ def train_and_evaluate():
     print("Dataset ready")
 
     # 데이터셋 분할
-    train_size = int(0.6 * len(dataset))
-    val_size = int(0.2 * len(dataset))
-    test_size = len(dataset) - train_size - val_size
-    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, val_size, test_size])
+    seed = 42  # 원하는 시드 값으로 설정
+    set_seed(seed)
+
+    # 이미지 경로와 라벨 리스트를 가져옵니다.
+    image_paths = dataset.image_paths
+    labels = dataset.labels
+
+    # 전체 데이터셋을 60:40 비율로 train과 test로 나눕니다.
+    train_paths, test_paths, train_labels, test_labels = train_test_split(image_paths, labels, test_size=0.4, random_state=seed, stratify=labels)
+
+    # train 데이터셋의 10%를 validation 데이터로 나눕니다.
+    train_paths, val_paths, train_labels, val_labels = train_test_split(train_paths, train_labels, test_size=0.1, random_state=seed, stratify=train_labels)
+
+    # 각 서브셋에 대해 CustomDataset을 만듭니다.
+    train_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+    val_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+    test_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+
+    # 필요한 경우 각 데이터셋의 이미지 경로와 라벨을 설정해줍니다.
+    train_dataset.image_paths, train_dataset.labels = train_paths, train_labels
+    val_dataset.image_paths, val_dataset.labels = val_paths, val_labels
+    test_dataset.image_paths, test_dataset.labels = test_paths, test_labels
 
     # 데이터 로더 생성
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=4)
-    print("Dataset split")
+    
+    # train_size = int(0.6 * len(dataset))
+    # val_size = int(0.2 * len(dataset))
+    # test_size = len(dataset) - train_size - val_size
+    # train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, val_size, test_size])
 
+    # # 데이터 로더 생성
+    # train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
+    # val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
+    # test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=4)
+    # print("Dataset split")
+
+    
+    # 데이터셋 분할 후, 각 데이터셋의 크기 출력
+    print(f"Training dataset size: {len(train_dataset)}")
+    print(f"Validation dataset size: {len(val_dataset)}")
+    print(f"Test dataset size: {len(test_dataset)}")
     # 모델 초기화
     num_classes = len(label_map)
     model = MultilevelTCNModel(num_classes)
@@ -115,6 +161,8 @@ def train_and_evaluate():
         running_loss = 0.0
         all_preds = []
         all_labels = []
+        correct = 0
+        total = 0
 
         for i, (mel_images, chroma_images, mfcc_images, labels) in enumerate(tqdm(train_loader, desc=f"Training Epoch {epoch+1}/{num_epochs}")):
             mel_images, chroma_images, mfcc_images, labels = mel_images.to(device), chroma_images.to(device), mfcc_images.to(device), labels.to(device)
@@ -155,10 +203,10 @@ def train_and_evaluate():
         val_acc_history.append(accuracy)
         val_acc_history.append(val_running_loss / len(val_loader))
 
-        precision = precision_score(all_labels, all_predictions, average='weighted')
-        recall = recall_score(all_labels, all_predictions, average='weighted')
-        f1 = f1_score(all_labels, all_predictions, average='weighted')
-        conf_matrix = confusion_matrix(all_labels, all_predictions)
+        precision = precision_score(val_all_labels, val_all_predictions, average='weighted')
+        recall = recall_score(val_all_labels, val_all_predictions, average='weighted')
+        f1 = f1_score(val_all_labels, val_all_predictions, average='weighted')
+        conf_matrix = confusion_matrix(val_all_labels, val_all_predictions)
 
         print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {running_loss / len(train_loader)}, Val Accuracy: {accuracy}%, Precision: {precision}, Recall: {recall}, F1 Score: {f1}')
 
