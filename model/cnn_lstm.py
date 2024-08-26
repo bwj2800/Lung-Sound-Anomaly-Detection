@@ -23,11 +23,13 @@ class CNN_LSTM(nn.Module):
         
         # LSTM Layer
         # self.lstm = nn.LSTM(input_size=29, hidden_size=64, num_layers=1, batch_first=True)
-        self.lstm = nn.LSTM(input_size=6, hidden_size=64, num_layers=1, batch_first=True)
+        # self.lstm = nn.LSTM(input_size=6, hidden_size=64, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_size=14, hidden_size=64, num_layers=1, batch_first=True)
         
         # Fully Connected Layers
         # self.fc1 = nn.Linear(64*288, 128)
-        self.fc1 = nn.Linear(64*576, 128)
+        # self.fc1 = nn.Linear(64*576, 128)
+        self.fc1 = nn.Linear(64*1344, 128)
         self.fc2 = nn.Linear(128, num_class)
     
     def forward(self, x):
@@ -49,11 +51,14 @@ class CNN_LSTM(nn.Module):
         x = self.bn3(x)
         x = self.pool(x)
         # Reshape for LSTM
+        # print(x.size())
         # x = x.reshape(x.size(0), 96 * 3, 29)
-        x = x.reshape(x.size(0), 96 * 6, 6)
+        # x = x.reshape(x.size(0), 96 * 6, 6)
+        x = x.reshape(x.size(0), 96 * 14, 14)
         
         # LSTM Layer
         x, _ = self.lstm(x)
+        # print(x.size())
         
         # Fully Connected Layers
         x=torch.flatten(x, start_dim=1)

@@ -14,12 +14,13 @@ sys.path.append(os.path.abspath('./'))
 from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
-image_dir = './data_4gr/0822/Task1_1'
-model_save_path = './checkpoint/cnn_lstm_2class_0822.pth'
+image_dir = './data_4gr/0822/Task2_1'
+model_save_path = './checkpoint/cnn_lstm_Task2_1.pth'
 
 # 라벨 매핑
 # label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
-label_map = {'normal': 0, 'abnormal': 1}
+# label_map = {'normal': 0, 'abnormal': 1}
+label_map = {'Healthy': 0, 'Unhealthy': 1}
 
 seed = 42  # 원하는 시드 값으로 설정
 torch.manual_seed(seed)
@@ -57,7 +58,8 @@ class CustomDataset(Dataset):
 
 # Data preprocessing
 transform = transforms.Compose([
-    transforms.Resize((64, 64)),
+    # transforms.Resize((64, 64)),
+    transforms.Resize((128, 128)),
     transforms.ToTensor(),
 ])
 
