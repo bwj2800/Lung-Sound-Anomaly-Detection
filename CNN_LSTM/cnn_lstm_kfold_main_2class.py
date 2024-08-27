@@ -17,12 +17,13 @@ from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
 # image_dir = 'data_4gr/mel_image_cnn_lstm_2class'
-image_dir = './data_4gr/0822/Task1_1'
+image_dir = './data_4gr/0822/Task2_1'
 model_save_dir = './checkpoint/'
 
 # 라벨 매핑
 # label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
-label_map = {'normal': 0, 'abnormal': 1}
+# label_map = {'normal': 0, 'abnormal': 1}
+label_map = {'Healthy': 0, 'Unhealthy': 1}
 
 # 시드 고정
 def set_seed(seed):
@@ -64,7 +65,8 @@ def train_and_evaluate():
 
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((64, 64)),
+        # transforms.Resize((64, 64)),
+        transforms.Resize((128, 128)),
         transforms.ToTensor(),
     ])
 
@@ -167,7 +169,7 @@ def train_and_evaluate():
             if val_epoch_acc > best_accuracy:
                 best_accuracy = val_epoch_acc
                 best_model = model.state_dict()
-                torch.save(best_model, os.path.join(model_save_dir, f'cnn_lstm_fold_{fold+1}_2class_0822.pth'))
+                torch.save(best_model, os.path.join(model_save_dir, f'cnn_lstm_fold_{fold+1}_Task2_1.pth'))
                 print(f"Best model saved for fold {fold+1}")
 
         # Load the best model for the fold

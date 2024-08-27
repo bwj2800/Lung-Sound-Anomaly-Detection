@@ -16,11 +16,12 @@ from model.cnn_lstm import CNN_LSTM
 # 데이터셋 경로
 # image_dir = './data_4gr/mel_image_cnn_lstm'
 # model_save_path = './checkpoint/cnn_lstm.pth'
-image_dir = './data_4gr/0822/Task1_2'
-model_save_path = './checkpoint/cnn_lstm_0822.pth'
+image_dir = './data_4gr/0822/Task2_2'
+model_save_path = './checkpoint/cnn_lstm_Task2_2.pth'
 
 # 라벨 매핑
-label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+label_map = {'Healthy': 0, 'Chronic': 1, 'Non-Chronic': 2}
 
 seed = 42  # 원하는 시드 값으로 설정
 torch.manual_seed(seed)
@@ -58,7 +59,8 @@ class CustomDataset(Dataset):
 
 # Data preprocessing
 transform = transforms.Compose([
-    transforms.Resize((64, 64)),
+    # transforms.Resize((64, 64)),
+    transforms.Resize((128, 128)),
     transforms.ToTensor(),
 ])
 
@@ -103,7 +105,7 @@ print(f"Test dataset size: {len(test_dataset)}")
 
 
 # 모델 초기화
-num_class = 4
+num_class = 3
 model = CNN_LSTM(num_class=num_class)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -112,7 +114,8 @@ model=model.to(device)
 model.eval()
 correct = 0
 total = 0
-avg_cm = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+# avg_cm = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+avg_cm = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
 
 # Count trainable parameters
@@ -123,7 +126,7 @@ num_params = count_parameters(model)
 print(f'Trainable Parameters: {num_params / 1e6:.2f} M')
 
 # Calculate MACs and FLOPs
-input = torch.randn(1, 3, 64, 64).to(device)
+input = torch.randn(1, 3, 128, 128).to(device)
 macs, params = profile(model, inputs=(input,))
 print(f'MACs per single image: {macs / 1e9:.2f} G')
 print(f'FLOPs per single image: {macs * 2 / 1e9:.2f} G')
@@ -153,7 +156,7 @@ def get_model_memory(model, input_size):
 
     return total_memory
 
-input_size = (3, 64, 64)
+input_size = (3, 128, 128)
 memory_usage = get_model_memory(model, input_size)
 print(f'Model Memory Usage: {memory_usage / 1024**3:.2f} G  ({memory_usage / 1024**2:.2f} MB)')
 
@@ -179,18 +182,28 @@ with torch.no_grad():
     print(f'Accuracy on test set: {100 * correct / total}%')
 
     # 클래스별 성능 계산
-    s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
-    s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
-    s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    # s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
+    # s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
+    # s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
     
-    S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
-                      (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
-                      +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
-                      +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
+    # S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
+    #                   (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
+    #                   +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
+    #                   +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
+    # S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
+    
+    s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2])
+    s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
+    
+    S_e=(avg_cm[1][1]+avg_cm[2][2])/\
+                      (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2]
+                      +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
+    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2])
     S_c=(S_p+S_e)/2
 
-    print(f'Crackle Accuracy: {s_crackle:.2%}')
-    print(f'Wheeze Accuracy: {s_wheezle:.2%}')
-    print(f'Both Accuracy: {s_both:.2%}')
+    # print(f'Crackle Accuracy: {s_crackle:.2%}')
+    # print(f'Wheeze Accuracy: {s_wheezle:.2%}')
+    print(f'Chronic Accuracy: {s_crackle:.2%}')
+    print(f'Non-chronic Accuracy: {s_wheezle:.2%}')
+    # print(f'Both Accuracy: {s_both:.2%}')
     print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))

@@ -16,12 +16,13 @@ from model.cnn_lstm import CNN_LSTM
 # 데이터셋 경로
 # image_dir = './data_4gr/mel_image_cnn_lstm_2class'
 # model_save_path = './checkpoint/cnn_lstm_2class.pth'
-image_dir = './data_4gr/0822/Task1_1'
-model_save_path = './checkpoint/cnn_lstm_2class_0822.pth'
+image_dir = './data_4gr/0822/Task2_1'
+model_save_path = './checkpoint/cnn_lstm_Task2_1.pth'
 
 # 라벨 매핑
 # label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
-label_map = {'normal': 0, 'abnormal': 1}
+# label_map = {'normal': 0, 'abnormal': 1}
+label_map = {'Healthy': 0, 'Unhealthy': 1}
 
 seed = 42  # 원하는 시드 값으로 설정
 torch.manual_seed(seed)
@@ -59,7 +60,8 @@ class CustomDataset(Dataset):
 
 # Data preprocessing
 transform = transforms.Compose([
-    transforms.Resize((64, 64)),
+    # transforms.Resize((64, 64)),
+    transforms.Resize((128, 128)),
     transforms.ToTensor(),
 ])
 
@@ -126,7 +128,7 @@ num_params = count_parameters(model)
 print(f'Trainable Parameters: {num_params / 1e6:.2f} M')
 
 # Calculate MACs and FLOPs
-input = torch.randn(1, 3, 64, 64).to(device)
+input = torch.randn(1, 3, 128, 128).to(device)
 macs, params = profile(model, inputs=(input,))
 print(f'MACs per single image: {macs / 1e9:.2f} G')
 print(f'FLOPs per single image: {macs * 2 / 1e9:.2f} G')
@@ -156,7 +158,7 @@ def get_model_memory(model, input_size):
 
     return total_memory
 
-input_size = (3, 64, 64)
+input_size = (3, 128, 128)
 memory_usage = get_model_memory(model, input_size)
 print(f'Model Memory Usage: {memory_usage / 1024**3:.2f} G  ({memory_usage / 1024**2:.2f} MB)')
 

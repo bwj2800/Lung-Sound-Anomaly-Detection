@@ -239,11 +239,12 @@ from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
 # image_dir = 'data_4gr/mel_image_cnn_lstm'
-image_dir = './data_4gr/0822/Task1_2'
+image_dir = './data_4gr/0822/Task2_2'
 model_save_dir = './checkpoint/'
 
 # 라벨 매핑
-label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+label_map = {'Healthy': 0, 'Chronic': 1, 'Non-Chronic': 2}
 
 # 시드 고정
 def set_seed(seed):
@@ -285,7 +286,8 @@ def train_and_evaluate():
 
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((64, 64)),
+        # transforms.Resize((64, 64)),
+        transforms.Resize((128, 128)),
         transforms.ToTensor(),
     ])
 
@@ -316,7 +318,7 @@ def train_and_evaluate():
         print("Dataset split")
 
         # Model initialization
-        num_class = 4
+        num_class = 3
         model = CNN_LSTM(num_class=num_class)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
