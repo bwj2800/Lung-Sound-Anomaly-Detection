@@ -28,19 +28,24 @@ class MultilevelTCNModel(nn.Module):
     def __init__(self, num_classes):
         super(MultilevelTCNModel, self).__init__()
         # Pre-trained VGG19 model for feature extraction
-        self.vgg19 = models.vgg19(weights='VGG19_Weights.DEFAULT').features
+        # self.vgg19 = models.vgg19(weights='VGG19_Weights.DEFAULT').features
         
+        # Pre-trained ResNet50 model for feature extraction
+        resnet = models.resnet50(weights='ResNet50_Weights.DEFAULT')
+        self.resnet_features = nn.Sequential(*list(resnet.children())[:-2])  # Remove the last FC layer and pooling
+
         # Multilevel TCN blocks
-        self.residual_blocks1 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 3)])
-        self.residual_blocks2 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 3), ResidualBlock(512, 512, 9)])
+        self.residual_blocks1 = nn.ModuleList([ResidualBlock(2048, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 3)])
+        self.residual_blocks2 = nn.ModuleList([ResidualBlock(2048, 512, 1), ResidualBlock(512, 512, 3), ResidualBlock(512, 512, 9)])
 
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
         self.fc1 = nn.Linear(1024, 128)
         self.fc2 = nn.Linear(128, num_classes)
 
     def forward(self, x):
-        # Extract features using VGG19
-        x = self.vgg19(x)
+        # Extract features using VGG19 -> renet50
+        # x = self.vgg19(x)
+        x = self.resnet_features(x)
 
         # Reshape from (batch_size, channels, height, width) to (batch_size, channels, height * width)
         x = x.view(x.size(0), x.size(1), -1)
