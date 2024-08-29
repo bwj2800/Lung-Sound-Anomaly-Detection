@@ -20,13 +20,14 @@ from sklearn.model_selection import train_test_split
 
 # 데이터셋 경로
 # image_dir = 'data_4gr/mel_image'
-image_dir = './Aug/Task1_1'
+image_dir = './Aug/Task2_1'
 # image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
-model_save_path = './checkpoint/rdlinet_binary_kfold_augmented.pth'
+model_save_path = './checkpoint/rdlinet_binary_kfold_task2_1.pth'
 
 # 라벨 매핑
 # label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
-label_map = {'normal': 0, 'abnormal': 1}
+# label_map = {'normal': 0, 'abnormal': 1}
+label_map = {'Healthy': 0, 'Unhealthy': 1}
 
 # 시드 고정
 def set_seed(seed):
@@ -68,7 +69,7 @@ def train_and_evaluate():
 
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((64,64)),
+        transforms.Resize((128,128)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
@@ -151,7 +152,7 @@ def train_and_evaluate():
 
             epoch_loss = running_loss / len(train_loader)
             epoch_acc = accuracy_score(all_labels, all_preds)
-            precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='weighted')
+            precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary')
 
             train_loss_history.append(epoch_loss)
             train_acc_history.append(epoch_acc)
@@ -207,7 +208,7 @@ def train_and_evaluate():
                 total += labels.size(0)
                 correct += (preds == labels).sum().item()
 
-                cm = confusion_matrix(labels.cpu(), preds.cpu())
+                cm = confusion_matrix(labels.cpu(), preds.cpu(), labels=[0,1])
                 avg_cm += cm
         # Fold 마다 지표 계산
 
@@ -265,7 +266,7 @@ def train_and_evaluate():
 
     plt.tight_layout()
     plt.savefig('training_results.png')
-    plt.show()
+    # plt.show()
 
 if __name__ == '__main__':
     train_and_evaluate()

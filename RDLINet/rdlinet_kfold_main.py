@@ -266,7 +266,7 @@ def train_and_evaluate():
 
     plt.tight_layout()
     plt.savefig('training_results.png')
-    plt.show()
+    # plt.show()
 
 if __name__ == '__main__':
     train_and_evaluate()
