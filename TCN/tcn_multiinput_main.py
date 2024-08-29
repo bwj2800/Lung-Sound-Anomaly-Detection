@@ -16,16 +16,17 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
 
 # from multi_input_to_backbone_tcn_ import MultilevelTCNModel
-from multi_input_tcn import MultilevelTCNModel
+# from multi_input_tcn import MultilevelTCNModel
+from multi_input_tcn_resnet50 import MultilevelTCNModel
 
 # 데이터셋 경로
 # mel_dir = 'data_4gr/mel_image'
-# # mel_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
-# chroma_dir = 'data_4gr/chroma_image'
-# mfcc_dir = 'data_4gr/mfcc_image'
-low_dir='data_4gr/mel_image_3/low'
-high_dir='data_4gr/mel_image_3/high'
-band_dir='data_4gr/mel_image_3/band'
+mel_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+chroma_dir = 'data_4gr/chroma_image'
+mfcc_dir = 'data_4gr/mfcc_image'
+# low_dir='data_4gr/mel_image_3/low'
+# high_dir='data_4gr/mel_image_3/high'
+# band_dir='data_4gr/mel_image_3/band'
 
 # model_save_path = './checkpoint/tcn_vgg19_pt_ml.pth'
 model_save_path = './checkpoint/tcn_3_filter.pth'
@@ -91,8 +92,8 @@ def train_and_evaluate():
     ])
 
     # Create the dataset
-    # dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
-    dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
+    dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+    # dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
     print("Dataset ready")
 
     # 데이터셋 분할
@@ -110,12 +111,12 @@ def train_and_evaluate():
     train_paths, val_paths, train_labels, val_labels = train_test_split(train_paths, train_labels, test_size=0.1, random_state=seed, stratify=train_labels)
 
     # 각 서브셋에 대해 CustomDataset을 만듭니다.
-    # train_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
-    # val_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
-    # test_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
-    train_dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
-    val_dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
-    test_dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
+    train_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+    val_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+    test_dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+    # train_dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
+    # val_dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
+    # test_dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
 
     # 필요한 경우 각 데이터셋의 이미지 경로와 라벨을 설정해줍니다.
     train_dataset.image_paths, train_dataset.labels = train_paths, train_labels
