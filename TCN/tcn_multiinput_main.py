@@ -15,7 +15,8 @@ import random
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
 
-from multi_input_to_backbone_tcn_ import MultilevelTCNModel
+# from multi_input_to_backbone_tcn_ import MultilevelTCNModel
+from multi_input_tcn import MultilevelTCNModel
 
 # 데이터셋 경로
 mel_dir = 'data_4gr/mel_image'

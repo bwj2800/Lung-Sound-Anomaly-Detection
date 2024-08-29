@@ -137,12 +137,125 @@ for idx, file_name in tqdm(enumerate(filenames)):
 print(len(cycle_list))
 print(len(classwise_cycle_list))
 
+# =============================================================================
+# Data augmentation
+# =============================================================================
+# augment normal
+seed_value = 1
+random.seed(seed_value)
+np.random.seed(seed_value)
+tf.random.set_seed(seed_value)
+tf.compat.v1.set_random_seed(seed_value)
+tf.keras.utils.set_random_seed(seed_value)
+scale = 1
+aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[1])
+for idx in range(aug_nos):
+    # inhale + exhale
+    i = random.randint(0, len(classwise_cycle_list[0])-1)
+    j = random.randint(0, len(classwise_cycle_list[0])-1)
+    normal_i = classwise_cycle_list[0][i]
+    normal_j = classwise_cycle_list[0][j]
+    new_sample = np.concatenate([normal_i[0], normal_j[0]])
+    cycle_list.append((new_sample, 0, normal_i[2]+'-'+normal_j[2], idx, 1))
+    filenames_with_labels.append(normal_i[2]+'-'+normal_j[2]+'_'+str(idx)+'_0')
+    
+# augment normal (inhale + exhale)
+# 숨쉬는거라 inhale+exhale / exhale+inhale로만 구성함
+aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[1])
+for idx in range(aug_nos):
+    aug_prob = random.random()
+    if aug_prob < 0.5:
+        # exhale + inhale
+        i = random.randint(0, len(classwise_cycle_list[1])-1)
+        j = random.randint(0, len(classwise_cycle_list[0])-1)
+        sample_i = classwise_cycle_list[1][i]
+        sample_j = classwise_cycle_list[0][j]
+    else:
+        # inhale + exhale
+        i = random.randint(0, len(classwise_cycle_list[0])-1)
+        j = random.randint(0, len(classwise_cycle_list[1])-1)
+        sample_i = classwise_cycle_list[0][i]
+        sample_j = classwise_cycle_list[1][j]
+
+    new_sample = np.concatenate([sample_i[0], sample_j[0]])
+    cycle_list.append((new_sample, 1, sample_i[2]+'-'+sample_j[2], idx, 1))
+    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_1')
+
+# augment abnormal (wheeze)
+aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[2])
+for idx in range(aug_nos):
+    aug_prob = random.random()
+    if aug_prob < 0.6:
+        # wheeze_i + wheeze_j
+        i = random.randint(0, len(classwise_cycle_list[2])-1)
+        j = random.randint(0, len(classwise_cycle_list[2])-1)
+        sample_i = classwise_cycle_list[2][i]
+        sample_j = classwise_cycle_list[2][j]
+    elif aug_prob >= 0.6 and aug_prob < 0.8:
+        # wheeze_i + normal_j
+        i = random.randint(0, len(classwise_cycle_list[2])-1)
+        j = random.randint(0, len(classwise_cycle_list[0])-1)
+        sample_i = classwise_cycle_list[2][i]
+        sample_j = classwise_cycle_list[0][j]
+    else:
+        # normal_i + wheeze_j
+        i = random.randint(0, len(classwise_cycle_list[0])-1)
+        j = random.randint(0, len(classwise_cycle_list[2])-1)
+        sample_i = classwise_cycle_list[0][i]
+        sample_j = classwise_cycle_list[2][j]
+
+    new_sample = np.concatenate([sample_i[0], sample_j[0]])
+    cycle_list.append((new_sample, 2, sample_i[2]+'-'+sample_j[2], idx, 1))
+    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_2')
+
+
+# augment abnormal (both)
+aug_nos = scale*len(classwise_cycle_list[0]) - len(classwise_cycle_list[3])
+for idx in range(aug_nos):
+    aug_prob = random.random()
+    if aug_prob < 0.5:
+        # both_i + both_j
+        i = random.randint(0, len(classwise_cycle_list[3])-1)
+        j = random.randint(0, len(classwise_cycle_list[3])-1)
+        sample_i = classwise_cycle_list[3][i]
+        sample_j = classwise_cycle_list[3][j]
+    elif aug_prob >= 0.5 and aug_prob < 0.7:
+        # crackle_i + wheeze_j
+        i = random.randint(0, len(classwise_cycle_list[1])-1)
+        j = random.randint(0, len(classwise_cycle_list[2])-1)
+        sample_i = classwise_cycle_list[1][i]
+        sample_j = classwise_cycle_list[2][j]
+    elif aug_prob >= 0.7 and aug_prob < 0.8:
+        # wheeze_i + crackle_j
+        i = random.randint(0, len(classwise_cycle_list[3])-1)
+        j = random.randint(0, len(classwise_cycle_list[0])-1)
+        sample_i = classwise_cycle_list[3][i]
+        sample_j = classwise_cycle_list[0][j]
+    elif aug_prob >= 0.8 and aug_prob < 0.9:
+        # both_i + normal_j
+        i = random.randint(0, len(classwise_cycle_list[3])-1)
+        j = random.randint(0, len(classwise_cycle_list[0])-1)
+        sample_i = classwise_cycle_list[3][i]
+        sample_j = classwise_cycle_list[0][j]
+    else:
+        # normal_i + both_j
+        i = random.randint(0, len(classwise_cycle_list[0])-1)
+        j = random.randint(0, len(classwise_cycle_list[3])-1)
+        sample_i = classwise_cycle_list[0][i]
+        sample_j = classwise_cycle_list[3][j]
+
+    new_sample = np.concatenate([sample_i[0], sample_j[0]])
+    cycle_list.append((new_sample, 3, sample_i[2]+'-'+sample_j[2], idx, 1))
+    filenames_with_labels.append(sample_i[2]+'-'+sample_j[2]+'_'+str(idx)+'_3')
+
+print("len(cycle_list): ",len(cycle_list))
+
 #=============================================================================
-# Aligning to an 4-second duration
+# Aligning to an 8-second duration
 # =============================================================================
 audio_data = [] # each sample is a tuple with id_0: audio_data, id_1: label, id_2: file_name, id_3: cycle id, id_4: aug id, id_5: split id
 labels = []
-desiredLength = 4
+desiredLength = 8
 print('desiredLength*sample_rate: ', desiredLength*sample_rate)
 output = []
 for idx, sample in enumerate(cycle_list):
