@@ -29,7 +29,7 @@ mfcc_dir = 'data_4gr/mfcc_image'
 # band_dir='data_4gr/mel_image_3/band'
 
 # model_save_path = './checkpoint/tcn_vgg19_pt_ml.pth'
-model_save_path = './checkpoint/tcn_3_filter.pth'
+model_save_path = './checkpoint/tcn_multiinput_resnet50.pth'
 
 # 라벨 매핑
 label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
@@ -124,9 +124,9 @@ def train_and_evaluate():
     test_dataset.image_paths, test_dataset.labels = test_paths, test_labels
 
     # 데이터 로더 생성
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
     
     # train_size = int(0.6 * len(dataset))
     # val_size = int(0.2 * len(dataset))
