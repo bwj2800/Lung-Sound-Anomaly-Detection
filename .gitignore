@@ -17,3 +17,4 @@ output_segments
 __pycache__
 *.wav
 run_command.ipynb
+.vscode/
