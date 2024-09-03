@@ -29,14 +29,18 @@ class MultilevelTCNModel(nn.Module):
         super(MultilevelTCNModel, self).__init__()
         # Pre-trained VGG19 model for feature extraction
         self.vgg19 = models.vgg19(weights='VGG19_Weights.DEFAULT').features
-
+        
         # Multilevel TCN blocks
-        self.residual_blocks1 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 3)])
+        self.residual_blocks1 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 2), ResidualBlock(512, 512, 4)])
         self.residual_blocks2 = nn.ModuleList([ResidualBlock(512, 512, 1), ResidualBlock(512, 512, 3), ResidualBlock(512, 512, 9)])
 
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
-        self.fc1 = nn.Linear(1024, 128)
-        self.fc2 = nn.Linear(128, num_classes)
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(1024, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 32)
+        self.fc4 = nn.Linear(32, num_classes)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         # Extract features using VGG19
@@ -60,7 +64,11 @@ class MultilevelTCNModel(nn.Module):
 
         # Global average pooling and fully connected layers
         x = self.global_avg_pool(x).squeeze(-1)
+        x = self.flatten(x)
         x = self.fc1(x)
         x = self.fc2(x)
+        x = self.fc3(x)
+        x = self.fc4(x)
+        x = self.softmax(x)
 
         return x

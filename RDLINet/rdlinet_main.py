@@ -67,7 +67,7 @@ def train_and_evaluate():
     final_epoch = 0
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((64,64)),
+        transforms.Resize((128,128)),
         transforms.ToTensor(),
         # transforms.Normalize((0.3416, 0.1199, 0.3481]), (0.2769, 0.1272, 0.1512))
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -270,7 +270,7 @@ def train_and_evaluate():
 
     plt.tight_layout()
     plt.savefig('training_results.png')
-    plt.show()
+    # plt.show()
 
 if __name__ == '__main__':
     train_and_evaluate()

@@ -19,13 +19,14 @@ from sklearn.model_selection import train_test_split
 
 # 데이터셋 경로
 # image_dir = 'data_4gr/mel_image'
-image_dir = './Aug/Task1_1'
+image_dir = './Aug/Task2_1'
 # image_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
-model_save_path = './checkpoint/rdlinet_binary_augmented.pth'
+model_save_path = './checkpoint/rdlinet_binary_task2_1.pth'
 
 # 라벨 매핑 - Binary Classification
 # label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
-label_map = {'normal': 0, 'abnormal': 1}
+# label_map = {'normal': 0, 'abnormal': 1}
+label_map = {'Healthy': 0, 'Unhealthy': 1}
 
 # 시드 고정
 def set_seed(seed):
@@ -67,7 +68,7 @@ def train_and_evaluate():
 
     # Data preprocessing
     transform = transforms.Compose([
-        transforms.Resize((64,64)),
+        transforms.Resize((128,128)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
@@ -220,8 +221,10 @@ def train_and_evaluate():
 
     f1 = 2 * (S_p * S_e) / (S_p + S_e)
 
-    print(f'Normal Sensitivity: {s_normal:.2%}')
-    print(f'Abnormal Sensitivity: {s_abnormal:.2%}')
+    # print(f'Normal Sensitivity: {s_normal:.2%}')
+    # print(f'Abnormal Sensitivity: {s_abnormal:.2%}')
+    print(f'Healthy Sensitivity: {s_normal:.2%}')
+    print(f'Unhealthy Sensitivity: {s_abnormal:.2%}')
     print(f"S_p: {S_p:.4f}, S_e: {S_e:.4f}, S_c: {S_c:.4f}")
     
     # 학습 결과 시각화 및 저장
@@ -246,7 +249,7 @@ def train_and_evaluate():
 
     plt.tight_layout()
     plt.savefig('training_results.png')
-    plt.show()
+    # plt.show()
 
 if __name__ == '__main__':
     train_and_evaluate()

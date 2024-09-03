@@ -16,4 +16,5 @@ output_segments
 *.pkl
 __pycache__
 *.wav
+run_command.ipynb
 .vscode/
