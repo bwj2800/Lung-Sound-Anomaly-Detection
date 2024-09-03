@@ -2,26 +2,27 @@ import os
 import torch
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
 from PIL import Image
 import sys
 import numpy as np
 import random
 import time
-from sklearn.model_selection import train_test_split
 from thop import profile
+from sklearn.model_selection import train_test_split
+
 sys.path.append(os.path.abspath('./'))
-from model.cnn_bigru import CNN_BiGRU
+from model.cnn_lstm import CNN_LSTM
 
 # 데이터셋 경로
-# image_dir = './data_4gr/mel_image_cnn_lstm'
-# model_save_path = './checkpoint/cnn_lstm.pth'
-image_dir = './data_4gr/0822/Task2_2'
-model_save_path = './checkpoint/cnn_bigru_Task2_2.pth'
+# image_dir = './data_4gr/mel_image_cnn_lstm_2class'
+# model_save_path = './checkpoint/cnn_lstm_2class.pth'
+image_dir = './data_4gr/0822/Task2_1'
+model_save_path = './checkpoint/cnn_bigru_Task2_1.pth'
 
 # 라벨 매핑
-# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
-label_map = {'Healthy': 0, 'Chronic': 1, 'Non-Chronic': 2}
+# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
+# label_map = {'normal': 0, 'abnormal': 1}
+label_map = {'Healthy': 0, 'Unhealthy': 1}
 
 seed = 42  # 원하는 시드 값으로 설정
 torch.manual_seed(seed)
@@ -66,6 +67,7 @@ transform = transforms.Compose([
 
 # Create the dataset
 dataset = CustomDataset(image_dir=image_dir, transform=transform)
+print("Dataset ready")
 
 # # 데이터셋 분할
 # train_size = int(0.6 * len(dataset))
@@ -105,18 +107,17 @@ print(f"Test dataset size: {len(test_dataset)}")
 
 
 # 모델 초기화
-num_class = 3
-# num_class = 4
-model = CNN_BiGRU(input_channels=80, num_branches=3, num_layers_per_branch=3, dilation_base=[2,3,4], hidden_dim1=80, hidden_dim2=32, num_classes=num_class)
+num_class = 2
+model = CNN_LSTM(num_class=num_class)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
 model.load_state_dict(torch.load(model_save_path, weights_only=True))
-model=model.to(device)
 model.eval()
 correct = 0
 total = 0
-# avg_cm = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
-avg_cm = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+avg_cm = [[0, 0], [0, 0]]
 
 
 # Count trainable parameters
@@ -127,7 +128,6 @@ num_params = count_parameters(model)
 print(f'Trainable Parameters: {num_params / 1e6:.2f} M')
 
 # Calculate MACs and FLOPs
-# input = torch.randn(1, 3, 64, 64).to(device)
 input = torch.randn(1, 3, 128, 128).to(device)
 macs, params = profile(model, inputs=(input,))
 print(f'MACs per single image: {macs / 1e9:.2f} G')
@@ -158,15 +158,14 @@ def get_model_memory(model, input_size):
 
     return total_memory
 
-# input_size = (3, 64, 64)
 input_size = (3, 128, 128)
 memory_usage = get_model_memory(model, input_size)
 print(f'Model Memory Usage: {memory_usage / 1024**3:.2f} G  ({memory_usage / 1024**2:.2f} MB)')
 
+
 with torch.no_grad():
-    
     start_time = time.time()
-    for images, labels in tqdm(test_loader):
+    for images, labels in test_loader:
         images, labels = images.to(device), labels.to(device)
         outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
@@ -176,37 +175,15 @@ with torch.no_grad():
         # 혼동 행렬 계산
         for i in range(num_class):
             avg_cm[labels[i]][predicted[i]] += 1
-            
-    
+
     end_time = time.time()
     avg_time = (end_time - start_time) / len(test_loader)
     print(f'Total Inference Time: {(end_time-start_time)* 1000:.2f} ms   Average Inference Time per Image: {avg_time*1000:.2f} ms')
 
     print(f'Accuracy on test set: {100 * correct / total}%')
 
-    # 클래스별 성능 계산
-    # s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3])
-    # s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3])
-    # s_both = avg_cm[3][3] / (avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-    
-    # S_e=(avg_cm[1][1]+avg_cm[2][2]+avg_cm[3][3] )/\
-    #                   (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2] + avg_cm[1][3]
-    #                   +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2] + avg_cm[2][3]
-    #                   +avg_cm[3][0] + avg_cm[3][1] + avg_cm[3][2] + avg_cm[3][3])
-    # S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2]+avg_cm[0][3])
-    
-    s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2])
-    s_wheezle = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
-    
-    S_e=(avg_cm[1][1]+avg_cm[2][2])/\
-                      (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2]
-                      +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
-    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2])
+    # 클래스별 성능 계산    
+    S_e=avg_cm[1][1]/(avg_cm[1][0]+avg_cm[1][1])
+    S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1])
     S_c=(S_p+S_e)/2
-
-    # print(f'Crackle Accuracy: {s_crackle:.2%}')
-    # print(f'Wheeze Accuracy: {s_wheezle:.2%}')
-    print(f'Chronic Accuracy: {s_crackle:.2%}')
-    print(f'Non-chronic Accuracy: {s_wheezle:.2%}')
-    # print(f'Both Accuracy: {s_both:.2%}')
     print("S_p: {}, S_e: {}, Score: {}".format(S_p, S_e, S_c))
