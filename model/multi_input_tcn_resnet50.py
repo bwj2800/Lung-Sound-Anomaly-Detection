@@ -44,11 +44,10 @@ class MultilevelTCNModel(nn.Module):
 
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(512 * 6, 256)  # Combine the output from all three TCN blocks
+        self.fc1 = nn.Linear(512 * 3, 256)  # Combine the output from all three TCN blocks
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 32)
         self.fc4 = nn.Linear(32, num_classes)
-        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, chroma, mfcc, mel):
         # Extract features using VGG19
@@ -102,6 +101,5 @@ class MultilevelTCNModel(nn.Module):
         x = self.fc2(x)
         x = self.fc3(x)
         x = self.fc4(x)
-        output = self.softmax(x)
 
-        return output
+        return x
