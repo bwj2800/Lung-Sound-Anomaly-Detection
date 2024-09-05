@@ -113,7 +113,8 @@ model = CNN_BiGRU(input_channels=80, num_branches=3, num_layers_per_branch=3, di
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-5)
+# optimizer = optim.Adam(model.parameters(), lr=1e-5)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 num_epochs = 100
 best_loss = float('inf')
