@@ -40,7 +40,6 @@ class MultilevelTCNModel(nn.Module):
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 32)
         self.fc4 = nn.Linear(32, num_classes)
-        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         # Extract features using VGG19
@@ -69,6 +68,5 @@ class MultilevelTCNModel(nn.Module):
         x = self.fc2(x)
         x = self.fc3(x)
         x = self.fc4(x)
-        x = self.softmax(x)
 
         return x
