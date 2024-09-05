@@ -102,7 +102,8 @@ def train_and_evaluate():
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=1e-5)
+        # optimizer = optim.Adam(model.parameters(), lr=1e-5)
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
 
         num_epochs = 100
         best_accuracy = 0.0

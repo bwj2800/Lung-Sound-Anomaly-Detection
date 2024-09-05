@@ -11,7 +11,7 @@ from thop import profile
 from sklearn.model_selection import train_test_split
 
 sys.path.append(os.path.abspath('./'))
-from model.cnn_lstm import CNN_LSTM
+from model.cnn_bigru import CNN_BiGRU
 
 # 데이터셋 경로
 # image_dir = './data_4gr/mel_image_cnn_lstm_2class'
@@ -20,7 +20,6 @@ image_dir = './data_4gr/0822/Task2_1'
 model_save_path = './checkpoint/cnn_bigru_Task2_1.pth'
 
 # 라벨 매핑
-# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 1, 'both': 1}
 # label_map = {'normal': 0, 'abnormal': 1}
 label_map = {'Healthy': 0, 'Unhealthy': 1}
 
@@ -108,7 +107,8 @@ print(f"Test dataset size: {len(test_dataset)}")
 
 # 모델 초기화
 num_class = 2
-model = CNN_LSTM(num_class=num_class)
+model = CNN_BiGRU(input_channels=80, num_branches=3, num_layers_per_branch=3, dilation_base=[2,3,4], hidden_dim1=80, hidden_dim2=32, num_classes=num_class)
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
