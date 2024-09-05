@@ -15,21 +15,21 @@ import random
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
 
-from multi_input_to_backbone_tcn_ import MultilevelTCNModel
-# from multi_input_tcn import MultilevelTCNModel
+# from multi_input_to_backbone_tcn_ import MultilevelTCNModel
+from multi_input_tcn import MultilevelTCNModel
 # from multi_input_tcn_resnet50 import MultilevelTCNModel
 
 # 데이터셋 경로
 # mel_dir = 'data_4gr/mel_image'
-mel_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
-chroma_dir = 'data_4gr/chroma_image'
-mfcc_dir = 'data_4gr/mfcc_image'
-# low_dir='data_4gr/mel_image_3/low'
-# high_dir='data_4gr/mel_image_3/high'
-# band_dir='data_4gr/mel_image_3/band'
+# mel_dir = './Dataset_ICBHI_Log-Melspec/Dataset_Task_1/Dataset_1_2'
+# chroma_dir = 'data_4gr/chroma_image'
+# mfcc_dir = 'data_4gr/mfcc_image'
+low_dir='data_4gr/mel_image_3/low'
+high_dir='data_4gr/mel_image_3/high'
+band_dir='data_4gr/mel_image_3/band'
 
-# model_save_path = './checkpoint/tcn_vgg19_pt_ml.pth'
-model_save_path = './checkpoint/tcn_vgg19_pt_ml_backboneConcat_1e-3.pth'
+model_save_path = './checkpoint/tcn_vgg19_3filter.pth'
+# model_save_path = './checkpoint/tcn_vgg19_pt_ml_backboneConcat_1e-3.pth'
 # model_save_path = './checkpoint/tcn_multiinput_resnet50.pth'
 
 # 라벨 매핑
@@ -93,8 +93,8 @@ def train_and_evaluate():
     ])
 
     # Create the dataset
-    dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
-    # dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
+    # dataset = CustomDataset(mel_dir=mel_dir, chroma_dir=chroma_dir, mfcc_dir=mfcc_dir, transform=transform)
+    dataset = CustomDataset(mel_dir=low_dir, chroma_dir=high_dir, mfcc_dir=band_dir, transform=transform)
     print("Dataset ready")
 
     # 데이터셋 분할
