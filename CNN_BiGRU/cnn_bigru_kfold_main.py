@@ -16,12 +16,12 @@ from model.cnn_bigru import CNN_BiGRU
 
 # 데이터셋 경로
 # image_dir = 'data_4gr/mel_image_cnn_lstm'
-image_dir = './data_4gr/0822/Task2_2'
+image_dir = './data_4gr/0822/Task1_2'
 model_save_dir = './checkpoint/'
 
 # 라벨 매핑
-# label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
-label_map = {'Healthy': 0, 'Chronic': 1, 'Non-Chronic': 2}
+label_map = {'normal': 0, 'crackle': 1, 'wheeze': 2, 'both': 3}
+# label_map = {'Healthy': 0, 'Chronic': 1, 'Non-Chronic': 2}
 
 # 시드 고정
 def set_seed(seed):
@@ -63,8 +63,8 @@ def train_and_evaluate():
 
     # Data preprocessing
     transform = transforms.Compose([
-        # transforms.Resize((64, 64)),
-        transforms.Resize((128, 128)),
+        transforms.Resize((64, 64)),
+        # transforms.Resize((128, 128)),
         transforms.ToTensor(),
     ])
 
@@ -95,8 +95,8 @@ def train_and_evaluate():
         print("Dataset split")
 
         # Model initialization
-        num_class = 3
-        # num_class = 4
+        # num_class = 3
+        num_class = 4
         model = CNN_BiGRU(input_channels=80, num_branches=3, num_layers_per_branch=3, dilation_base=[2,3,4], hidden_dim1=80, hidden_dim2=32, num_classes=num_class)
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -170,7 +170,7 @@ def train_and_evaluate():
             if val_epoch_acc > best_accuracy:
                 best_accuracy = val_epoch_acc
                 best_model = model.state_dict()
-                torch.save(best_model, os.path.join(model_save_dir, f'cnn_bigru_fold_{fold+1}_0822.pth'))
+                torch.save(best_model, os.path.join(model_save_dir, f'cnn_bigru_fold_{fold+1}_Task1_2.pth'))
                 print(f"Best model saved for fold {fold+1}")
 
         # Load the best model for the fold
@@ -178,8 +178,8 @@ def train_and_evaluate():
         model.eval()
         correct = 0
         total = 0
-        # avg_cm = np.zeros((4, 4), dtype=int)  # Reset confusion matrix for each fold
-        avg_cm = np.zeros((3, 3), dtype=int)  # Reset confusion matrix for each fold
+        avg_cm = np.zeros((4, 4), dtype=int)  # Reset confusion matrix for each fold
+        # avg_cm = np.zeros((3, 3), dtype=int)  # Reset confusion matrix for each fold
 
         with torch.no_grad():
             for images, labels in test_loader:
@@ -190,34 +190,34 @@ def train_and_evaluate():
                 correct += (predicted == labels).sum().item()
 
                 # Compute confusion matrix
-                # cm = confusion_matrix(labels.cpu().numpy(), predicted.cpu().numpy(), labels=[0, 1, 2, 3])
-                cm = confusion_matrix(labels.cpu().numpy(), predicted.cpu().numpy(), labels=[0, 1, 2])
+                cm = confusion_matrix(labels.cpu().numpy(), predicted.cpu().numpy(), labels=[0, 1, 2, 3])
+                # cm = confusion_matrix(labels.cpu().numpy(), predicted.cpu().numpy(), labels=[0, 1, 2])
                 avg_cm += cm
 
         # Fold metrics calculation
         accuracy = 100 * correct / total
-        # s_crackle = avg_cm[1][1] / avg_cm[1].sum() if avg_cm[1].sum() > 0 else 0
-        # s_wheeze = avg_cm[2][2] / avg_cm[2].sum() if avg_cm[2].sum() > 0 else 0
-        # s_both = avg_cm[3][3] / avg_cm[3].sum() if avg_cm[3].sum() > 0 else 0
+        s_crackle = avg_cm[1][1] / avg_cm[1].sum() if avg_cm[1].sum() > 0 else 0
+        s_wheeze = avg_cm[2][2] / avg_cm[2].sum() if avg_cm[2].sum() > 0 else 0
+        s_both = avg_cm[3][3] / avg_cm[3].sum() if avg_cm[3].sum() > 0 else 0
 
-        # S_e = (avg_cm[1][1] + avg_cm[2][2] + avg_cm[3][3]) / np.sum(avg_cm[1:4, :])
-        # S_p = avg_cm[0][0] / np.sum(avg_cm[0, :]) if np.sum(avg_cm[0, :]) > 0 else 0
-        s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2])
-        s_wheeze = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
+        S_e = (avg_cm[1][1] + avg_cm[2][2] + avg_cm[3][3]) / np.sum(avg_cm[1:4, :])
+        S_p = avg_cm[0][0] / np.sum(avg_cm[0, :]) if np.sum(avg_cm[0, :]) > 0 else 0
+        # s_crackle = avg_cm[1][1] / (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2])
+        # s_wheeze = avg_cm[2][2] / (avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
         
-        S_e=(avg_cm[1][1]+avg_cm[2][2])/\
-                        (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2]
-                        +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
-        S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2])
+        # S_e=(avg_cm[1][1]+avg_cm[2][2])/\
+        #                 (avg_cm[1][0] + avg_cm[1][1] + avg_cm[1][2]
+        #                 +avg_cm[2][0] + avg_cm[2][1] + avg_cm[2][2])
+        # S_p=avg_cm[0][0]/(avg_cm[0][0]+avg_cm[0][1]+avg_cm[0][2])
         
         S_c = (S_p + S_e) / 2
 
-        # fold_metrics.append([accuracy, s_crackle, s_wheeze, s_both, S_e, S_p, S_c])
-        fold_metrics.append([accuracy, s_crackle, s_wheeze, 0, S_e, S_p, S_c])
+        fold_metrics.append([accuracy, s_crackle, s_wheeze, s_both, S_e, S_p, S_c])
+        # fold_metrics.append([accuracy, s_crackle, s_wheeze, 0, S_e, S_p, S_c])
         print(f'Accuracy on test set for fold {fold+1}: {accuracy:.2f}%')
         print(f'Crackle Sensitivity: {s_crackle:.4f}')
         print(f'Wheeze Sensitivity: {s_wheeze:.4f}')
-        # print(f'Both Sensitivity: {s_both:.4f}')
+        print(f'Both Sensitivity: {s_both:.4f}')
         print(f"S_p: {S_p:.4f}, S_e: {S_e:.4f}, Score: {S_c:.4}")
         
     # Average metrics across all folds
@@ -227,7 +227,7 @@ def train_and_evaluate():
     print(f'\nAverage Accuracy across all folds: {mean_metrics[0]:.2f}%')
     print(f"Average Crackle Sensitivity: {mean_metrics[1]:.4f}")
     print(f"Average Wheeze Sensitivity: {mean_metrics[2]:.4f}")
-    # print(f"Average Both Sensitivity: {mean_metrics[3]:.4f}")
+    print(f"Average Both Sensitivity: {mean_metrics[3]:.4f}")
     print(f"Average Sensitivity (S_e): {mean_metrics[4]:.4f}")
     print(f"Average Specificity (S_p): {mean_metrics[5]:.4f}")
     print(f"Average Score (S_c): {mean_metrics[6]:.4f}")
