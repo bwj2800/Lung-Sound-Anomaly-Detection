@@ -18,3 +18,4 @@ __pycache__
 *.wav
 run_command.ipynb
 .vscode/
+*.zip
