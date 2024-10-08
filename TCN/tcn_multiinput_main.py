@@ -15,7 +15,8 @@ import random
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model')))
 
-from multi_input_to_backbone_tcn_ import MultilevelTCNModel
+from multi_input_tcn_coatnet import MultilevelTCNModel
+# from multi_input_to_backbone_tcn_ import MultilevelTCNModel
 # from multi_input_tcn import MultilevelTCNModel
 # from multi_input_tcn_resnet50 import MultilevelTCNModel
 
@@ -29,7 +30,8 @@ mfcc_dir = 'data_4gr/mfcc_image'
 # band_dir='data_4gr/mel_image_3/band'
 
 # model_save_path = './checkpoint/tcn_vgg19_pt_ml.pth'
-model_save_path = './checkpoint/tcn_vgg19_pt_ml_backboneConcat_1e-3.pth'
+# model_save_path = './checkpoint/tcn_vgg19_pt_ml_backboneConcat_1e-3.pth'
+model_save_path = './checkpoint/tcn_coatnet_pt_ml.pth'
 # model_save_path = './checkpoint/tcn_multiinput_resnet50.pth'
 
 # 라벨 매핑
